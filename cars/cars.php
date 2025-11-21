@@ -17,7 +17,7 @@
             <img src="../VNM logo.png" alt="">
         </div>
         <div class="navLink">
-            <a href="../admin_panel/admin_panel.php">Dashboard</a>
+            <a href="../index.php">Dashboard</a>
             <a href="">Cars</a>
             <a href="" id="logout">Logout</a>
 
