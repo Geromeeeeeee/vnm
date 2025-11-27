@@ -1,13 +1,7 @@
 <?php 
-$host = "localhost";
-$user = "root";
-$pass = "";
-$db   = "vnm";
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Database connection failed: " . $conn->connect_error);
-}
+error_reporting(E_ALL);
+	ini_set('display_errors', 1);
+    include '../db.php';
 
 
 // ================= Insert Vehicle =================
@@ -15,7 +9,12 @@ if (isset($_POST['model']) && !isset($_POST['edit_id'])) {
     $model = $_POST['model'];
     $car_brand = $_POST['brand'];
     $year = $_POST['year'];
-    $daily_rate = $_POST['daily_rate'];
+    $daily_rate = isset($_POST['daily_rate']) ? $_POST['daily_rate'] : '';
+    if (!is_numeric($daily_rate) || floatval($daily_rate) < 0) {
+        echo "<p style='color:red;'>Invalid daily rate. It must be a non-negative number.</p>";
+        exit();
+    }
+    $daily_rate = floatval($daily_rate);
     $fuel_type = $_POST['fuel_type'];
     $location_id = $_POST['location_id'];
     $availability = isset($_POST['availability']) ? $_POST['availability'] : 1;
@@ -47,7 +46,12 @@ if (isset($_POST['edit_id'])) {
     $model = $_POST['model'];
     $car_brand = $_POST['brand'];
     $year = $_POST['year'];
-    $daily_rate = $_POST['daily_rate'];
+    $daily_rate = isset($_POST['daily_rate']) ? $_POST['daily_rate'] : '';
+    if (!is_numeric($daily_rate) || floatval($daily_rate) < 0) {
+        echo "<p style='color:red;'>Invalid daily rate. It must be a non-negative number.</p>";
+        exit();
+    }
+    $daily_rate = floatval($daily_rate);
     $fuel_type = $_POST['fuel_type'];
     $location_id = $_POST['location_id'];
     $availability = isset($_POST['availability']) ? $_POST['availability'] : 1;
@@ -120,12 +124,14 @@ $result = $conn->query($sql);
 <style>
 
 .action-buttons {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column; 
     justify-content: center;
     align-items: center;
     gap: 5px; 
     min-height: 50px;
+    margin: 1.5vh;
 }
 .action-buttons form {
     display: inline-block;
@@ -146,8 +152,7 @@ $result = $conn->query($sql);
 
 
 .form, .edit-form {
-    display: none;
-    max-width: 400px;
+    max-width: 75%;
     margin: 10px auto;
     padding: 15px;
     border: 1px solid #ddd;
@@ -155,8 +160,28 @@ $result = $conn->query($sql);
     background-color: #f9f9f9;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
-.form.show { display: block; }
-.form label, .edit-form label { display:block; margin-bottom:5px; font-weight:bold; }
+
+#add-vehicle-form{
+    display: block;
+}
+
+div:popover-open{
+    display: block;
+    width: 90vw;
+    height: 90vh;
+    overflow: auto;
+    border: transparent;
+    margin: auto;
+    backdrop-filter: blur(15px);
+    background-color: #ffffff4d;
+    box-shadow: 0 0px 8px rgba(0,0,0,0.1);
+}
+
+.form label, .edit-form label { 
+    display:block; 
+    margin-bottom:5px; 
+    font-weight:bold; 
+}
 .form input[type="text"], .form input[type="number"], .form input[type="file"], .form select,
 .edit-form input[type="text"], .edit-form input[type="number"], .edit-form input[type="file"], .edit-form select {
     width:100%; padding:8px; margin-bottom:12px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;
@@ -200,40 +225,48 @@ table td, table th { text-align:center; }
 </nav>
 
 <main>
-<button onclick="show()">Add Vehicle</button>
+<button popovertarget="add-vehicle">Add Vehicle</button>
 
 <!-- Add Vehicle Form -->
-<form action="" method="POST" enctype="multipart/form-data" class="form show">
-    <label>Image</label>
-    <input type="file" name="image">
+ <div popover id="add-vehicle">
+    <form action="" method="POST" enctype="multipart/form-data" class="form" id="add-vehicle-form">
+        <label>Image</label>
+        <input type="file" name="image">
 
-    <label>Model</label>
-    <input type="text" name="model" required>
+        <label>Model</label>
+        <input type="text" name="model">
 
-    <label>Brand</label>
-    <input type="text" name="brand" required pattern="[A-Za-z\s]+" title="Only letters and spaces allowed">
+        <label for="plate_no.">Plate No.</label>
+        <input type="text" name="plate_no." required pattern="^[A-Z]{3}\s?\d{2,4}$" title="Format: ABC 123, ABC 1234, or ABC 12">
 
-    <label>Year</label>
-    <input type="number" name="year" min="1900" max="2100" required>
+        <label>Brand</label>
+        <input type="text" name="brand" required pattern="[A-Za-z\s]+" title="Only letters and spaces allowed">
 
-    <label>Daily Rate</label>
-    <input type="number" step="0.01" name="daily_rate" required>
+        <label>Year</label>
+        <input type="number" name="year" min="1900" max="2100" required>
 
-    <label>Fuel Type</label>
-    <input type="text" name="fuel_type" required pattern="[A-Za-z\s]+" title="Only letters and spaces allowed">
+        <label>Daily Rate</label>
+        <input type="number" step="0.01" name="daily_rate" min="0" required>
 
-    <label>Location ID</label>
-    <input type="number" name="location_id" required>
+        <label>Owner</label>
+        <input type="text" name="owner" required>
 
-    <label>Availability</label>
-    <select name="availability">
-        <option value="1">Available</option>
-        <option value="0">Unavailable</option>
-        <option value="2">Maintenance</option>
-    </select>
+        <label>Fuel Type</label>
+        <input type="text" name="fuel_type" required pattern="[A-Za-z\s]+" title="Only letters and spaces allowed">
 
-    <button type="submit" class="submit">Add Vehicle</button>
-</form>
+        <label>Location ID</label>
+        <input type="number" name="location_id" required>
+
+        <label>Availability</label>
+        <select name="availability">
+            <option value="1">Available</option>
+            <option value="0">Unavailable</option>
+            <option value="2">Maintenance</option>
+        </select>
+
+        <button type="submit" class="submit">Add Vehicle</button>
+    </form>
+ </div>
 
 <h3>Vehicles Table</h3>
 <table border="1" cellpadding="10" cellspacing="0" style="width:100%; font-family:Arial; margin-bottom:20px;">
@@ -277,7 +310,7 @@ table td, table th { text-align:center; }
             <input type="text" name="model" value="<?= $row['model'] ?>" required>
             <input type="text" name="brand" value="<?= $row['car_brand'] ?>" required pattern="[A-Za-z\s]+" title="Only letters and spaces allowed">
             <input type="number" name="year" value="<?= $row['year'] ?>" required>
-            <input type="number" step="0.01" name="daily_rate" value="<?= $row['daily_rate'] ?>" required>
+            <input type="number" step="0.01" name="daily_rate" value="<?= $row['daily_rate'] ?>" min="0" required>
             <input type="text" name="fuel_type" value="<?= $row['fuel_type'] ?>" required pattern="[A-Za-z\s]+" title="Only letters and spaces allowed">
             <input type="number" name="location_id" value="<?= $row['location_id'] ?>" required>
             <select name="availability">
