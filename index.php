@@ -1,4 +1,6 @@
 <?php
+    error_reporting(E_ALL);
+	ini_set('display_errors', 1);
     include 'db.php'
 ?>
 
@@ -14,11 +16,11 @@
 <body>
     <nav>
         <div class="logo">
-            <img src="../VNM logo.png" alt="">
+            <img src="VNM logo.png" alt="">
         </div>
         <div class="navLink">
             <a href="">Dashboard</a>
-            <a href="/cars1/cars.php">Cars</a>
+            <a href="cars1/cars.php">Cars</a>
             <a href="" id="logout">Logout</a>
         </div>
     </nav>
