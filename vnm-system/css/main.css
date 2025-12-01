@@ -68,7 +68,7 @@ main{
 }
 @media (min-width:600px) {
     nav{
-        font-size: var(--font-l);
+        font-size: var(--font-m);
         gap: var(--space-m);
         padding:0 var(--padding-l);
     }
@@ -76,7 +76,7 @@ main{
         margin-right: var(--space-l);
     }
     nav button:nth-child(6){
-        font-size:var(--font-l);
+        font-size:var(--font-m);
     }
     nav a{
         display: flex;
@@ -86,7 +86,7 @@ main{
         transition: 0.125s ease-in-out;
     }
     nav a:hover, nav button:hover, #logout button:hover{
-        scale: 1.125;
+        scale: 1.075;
     }
     #logout{
         font-size: var(--font-l);
@@ -131,5 +131,9 @@ main{
     }
     section{
         min-height: 50vh;
+    }
+    .car-details p{
+        font-size: var(--font-m);
+        margin-bottom: var(--space-l);
     }
 }

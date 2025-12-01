@@ -114,15 +114,15 @@ if (isset($_POST['login'])) {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $login_error = "Invalid email format.";
     } else {
-        $stmt = $conn->prepare("SELECT id, password FROM users WHERE email=?");
+        $stmt = $conn->prepare("SELECT user_id, password FROM users WHERE email=?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
 
         if ($result->num_rows == 1) {
           $data = $result->fetch_assoc();
-          if (password_verify($password, $data['password'])) {
-            $_SESSION['user'] = $data['id'];
+                    if (password_verify($password, $data['password'])) {
+                        $_SESSION['user'] = $data['user_id'];
             // Successful login, redirect
             header("Location: login-dashboard.php");
             exit;

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css ?v=1.1">
-    <link rel="stylesheet" href="../css/login-dashboard.css ?v=1.1">
+    <link rel="stylesheet" href="../css/login-dashboard.css ?v=1.5">
     <title>VNM Car Rental</title>
     <style>
         .cars img {
@@ -42,6 +42,7 @@
         <a href="#cars">Cars</a>
         <a href="#aboutUs">About</a>
         <a href="">Contact</a>
+        <a href="../html/rentals.html">Rentals</a>
         <button popovertarget="logout">Logout</button>
     </nav>
 
@@ -51,7 +52,7 @@
         <button type="button" onclick="handleLogout('no')">No</button>
         <button type="button" onclick="handleLogout('yes')">Yes</button> 
         </div>
-</div>
+    </div>
 
     <main>
         <section>
@@ -79,10 +80,11 @@
                 <h3 id="modalCarName">Car Name</h3>
                 <p id="modalCarDescription">Car Description</p>
                 <h3 id="modalDailyRate">Daily Rate: </h3>
-                <button>Rent</button>
+                <button>
+                    <a href="../html/rent_form.html">Rent</a>
+                </button>
             </div>
         </div>
-
         <section id="aboutUs">
             <h1>About Us</h1>
             <p>Lorem ipsum dolor, sit amet consectetur adipisicing elit. Nesciunt qui assumenda atque necessitatibus eos pariatur reprehenderit. Itaque eligendi, quos voluptate enim corrupti dolorem natus in qui, quis aut ducimus debitis.</p>

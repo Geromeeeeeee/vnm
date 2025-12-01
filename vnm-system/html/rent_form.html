@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/rent_form.css?v=1.03">
+    <title>Rent</title>
+</head>
+<body>
+    <nav>
+        <h3>VNM Car Rental</h3>
+        <a href="../php/login-dashboard.php">Home</a>
+        <a href="#cars">Cars</a>
+        <a href="#aboutUs">About</a>
+        <a href="">Contact</a>
+        <a href="../html/rentals.html">Rentals</a>
+        <button popovertarget="logout">Logout</button>
+    </nav>
+
+    <div id="logout" popover="auto">
+    <p>Are you sure you want to logout?</p>
+    <div class="logout-button">
+        <button type="button" onclick="handleLogout('no')">No</button>
+        <button type="button" onclick="handleLogout('yes')">Yes</button> 
+        </div>
+    </div>
+    <main>
+        <div id="rent-details">
+            <div class="car-img">
+                <img src="<?= $images[0] ? '/vnm-system/php/cars/uploads/cars/'.$images[0] : '' ?>" alt="" id="img1">
+                <img src="<?= $images[1] ? '/vnm-system/php/cars/uploads/cars/'.$images[1] : '' ?>" alt="" id="img2">
+                <img src="<?= $images[2] ? '/vnm-system/php/cars/uploads/cars/'.$images[2] : '' ?>" alt="" id="img3">
+                <img src="<?= $images[3] ? '/vnm-system/php/cars/uploads/cars/'.$images[3] : '' ?>" alt="" id="img4">
+            </div>
+            <form action="rent.php" method="post">
+                <label for="car_model">Car Model: </label>
+                <input type="text" name="car_model" readonly required>                
+
+                <label for="pickup">Pickup Date: </label>
+                <input type="date" name="pickup" min="<?= date('Y-m-d'); ?>" required>
+                
+                <input type="time" name="time" required>
+                
+                <label for="duration">Duration: </label>
+                <input type="number" name="duration" min="1" required>
+                
+                <label for="price">Price: </label>
+                <input type="number" name="price" readonly required>    
+                <button type="submit">Confirm</button>
+            </form>
+        </div>
+    </main>
+     <script src="../js/dashboard.js"></script>
+</body>
+</html>

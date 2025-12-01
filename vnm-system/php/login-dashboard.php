@@ -56,7 +56,7 @@ foreach ($cars as $car) {
                 \'' . htmlspecialchars($car['model'], ENT_QUOTES) . '\',
                 \'' . $description_html . '\',
                 \'' . number_format($car['daily_rate'], 2) . '\',
-                \'' . $images_json . '\'
+                \'' . $images_json . '\',
         )">View Details</button>
     </div>';
 }

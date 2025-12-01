@@ -1,0 +1,67 @@
+:root{
+    --font-color:white;
+    --padding-s:2.5vh;
+    --padding-l:5vh;
+    --font-fam:Poppins;
+    --font-s:12px;
+    --font-m:18px;
+    --font-l:24px;
+    --font-xl:30px;
+    --space-s:2.5vh;
+    --space-m:5vh;
+    --space-l:7.5vh;
+    --radius-s:15px;
+    --radius-m:20px;
+    --radius-l:25px;
+}
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-fam);
+}
+@media (min-width:600px){
+    main, #upcoming, #history{
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: var(--padding-l);
+    }
+    section{
+        width: 100%;
+        height: fit-content;
+        gap: var(--space-m);
+    }
+    section h3{
+        margin-right: auto;
+    }
+    .rental-detail{
+        width: 95%;
+        height: 20vh;
+        border-radius: var(--radius-m);
+        box-shadow: 0px 0px 15px 0px rgba(255,255,255,0.5);
+        -webkit-box-shadow: 0px 0px 15px 0px rgba(255,255,255,0.5);
+        -moz-box-shadow: 0px 0px 15px 0px rgba(255,255,255,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--padding-s);
+    }
+    form{
+        display: flex;
+        flex-direction: row;
+        width: fit-content;
+        gap: var(--space-m);
+    }
+    form button{
+        width:fit-content;
+        background-color: #111;
+    }
+    #edit-popover:popover-open{
+        background-color: white;
+        width: 50vw;
+        height: 50vh;
+        z-index: 10;
+    }
+}
