@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/login-dashboard.css ?v=1.1">
+    <title>VNM Car Rental</title>
+    <style>
+        .cars img { object-fit: cover; }
+        #view-details .car-img img { width: 100%; height: 100%; object-fit: cover; }
+        .car-info-before-click { text-align: center; color: var(--font-color); width: 100%; padding: 5px 0; }
+        .car-info-before-click h4 { margin: 5px 0; font-size: var(--font-m); }
+        .car-info-before-click p { margin: 0; font-size: var(--font-s); }
+        #modalCarDescription { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h3>VNM Car Rental</h3>
+        <a href="../php/landing.php">Home</a>
+        <a href="#cars">Cars</a>
+        <a href="#aboutUs">About</a>
+        <a href="">Contact</a>
+        <button><a href="../php/login.php">Login/Signup</a></button>
+    </nav>
+
+    <main>
+        <section>
+            <h1>VNM Car Rental</h1>
+            <p>Lorem ipsum dolor, sit amet consectetur adipisicing elit. Nesciunt qui assumenda atque necessitatibus eos pariatur reprehenderit. Itaque eligendi, quos voluptate enim corrupti dolorem natus in qui, quis aut ducimus debitis.</p>
+        </section>
+
+        <section id="cars">
+            <div class="carousel">
+                <?php 
+                echo $carousel_html; 
+                ?>
+            </div>
+        </section>
+
+        <div id="view-details" popover="auto">
+            <div class="car-img">
+                <img src="" alt="" id="img1">
+                <img src="" alt="" id="img2">
+                <img src="" alt="" id="img3">
+                <img src="" alt="" id="img4">
+            </div>
+            <div class="car-details">
+                <h3 id="modalCarName">Car Name</h3>
+                <p id="modalCarDescription">Car Description</p>
+                <h3 id="modalDailyRate">Daily Rate: </h3>
+                <button><a href="../php/login.php">Login to Rent</a></button>
+            </div>
+        </div>
+
+        <section id="aboutUs">
+            <h1>About Us</h1>
+            <p>Lorem ipsum dolor, sit amet consectetur adipisicing elit. Nesciunt qui assumenda atque necessitatibus eos pariatur reprehenderit. Itaque eligendi, quos voluptate enim corrupti dolorem natus in qui, quis aut ducimus debitis.</p>
+        </section>
+    </main>
+
+    <script src="../js/landing.js"></script>
+</body>
+</html>

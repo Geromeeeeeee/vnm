@@ -1,0 +1,31 @@
+<?php
+    error_reporting(E_ALL);
+	ini_set('display_errors', 1);
+    include 'db.php'
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/common.css ?v=1.2">
+    <link rel="stylesheet" href="../admin_panel/admin_panel.css">
+    <title>VNM Admin</title>
+</head>
+<body>
+    <nav>
+        <div class="logo">
+            <img src="../photos/VNM logo.png" alt="">
+        </div>
+        <div class="navLink">
+            <a href="">Dashboard</a>
+            <a href="cars/cars.php">Cars</a>
+            <a href="" id="logout">Logout</a>
+        </div>
+    </nav>
+    <main>
+        
+    </main>
+</body>
+</html>
