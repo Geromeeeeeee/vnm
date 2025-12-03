@@ -19,9 +19,10 @@
             <img src="../photos/VNM logo.png" alt="">
         </div>
         <div class="navLink">
-            <a href="">Dashboard</a>
-            <a href="cars/cars.php">Cars</a>
-            <a href="" id="logout">Logout</a>
+            <a href="/vnm-system/php/adminindex.php">Dashboard</a>
+            <a href="/vnm-system/php/cars/cars.php">Cars</a>
+            <a href="/vnm-system/php/rentals.php">Rentals</a>
+            <a href="/vnm-system/php/landing.php" id="logout">Logout</a>
         </div>
     </nav>
     <main>

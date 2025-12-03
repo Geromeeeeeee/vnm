@@ -240,6 +240,10 @@ div:popover-open{
     box-shadow: 0 0px 8px rgba(0,0,0,0.1);
 }
 
+#edit-form-popover form{
+    display: block;
+}   
+
 .form label, .edit-form label { 
     display:block; 
     margin-bottom:5px; 
@@ -347,10 +351,11 @@ table td, table th { text-align:center; }
 </head>
 <body>
 <nav>
-    <div class="logo"><img src="/vnm-system/VNM logo.png" alt=""></div>
+    <div class="logo"><img src="/vnm-system/photos/VNM logo.png" alt="VNM logo"></div>
     <div class="navLink">
         <a href="/vnm-system/php/adminindex.php">Dashboard</a>
         <a href="/vnm-system/php/cars/cars.php">Cars</a>
+        <a href="/vnm-system/php/rentals.php">Rentals</a>
         <a href="/vnm-system/php/landing.php" id="logout">Logout</a>
     </div>
 </nav>
@@ -461,13 +466,14 @@ table td, table th { text-align:center; }
     </td>
     <td>
         <div class="action-buttons">
-            <button class="edit-btn" onclick="toggleEditForm(<?= $row['car_id'] ?>)">Edit Info</button>
+            <button class="edit-btn"  popovertarget="edit-form-popover">Edit Info</button>
             <form method="POST" onsubmit="return confirmDelete();">
                 <input type="hidden" name="delete_id" value="<?= $row['car_id'] ?>">
                 <button class="delete-btn" type="submit">Delete</button>
             </form>
         </div>
-
+        
+        <div id="edit-form-popover" popover="auto">
         <form id="editForm<?= $row['car_id'] ?>" class="edit-form" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="edit_id" value="<?= $row['car_id'] ?>">
 
@@ -530,6 +536,7 @@ table td, table th { text-align:center; }
 
             <button type="submit">Save</button>
         </form>
+        </div>
     </td>
 </tr>
 <?php endwhile; ?>
