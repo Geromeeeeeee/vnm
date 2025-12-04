@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/rent_form.css?v=1.03">
+    <title>Rent</title>
+</head>
+<body>
+    <nav>
+        <h3>VNM Car Rental</h3>
+        <a href="../php/login-dashboard.php">Home</a>
+        <a href="#cars">Cars</a>
+        <a href="#aboutUs">About</a>
+        <a href="">Contact</a>
+        <a href="../php/rentalsc.php">Rentals</a>
+        </nav>
+    <main>
+        <div id="rent-details">
+            <div class="car-img">
+                <img src="<?= $images[0] ? '/vnm-system/php/cars/uploads/cars/'.urlencode($images[0]) : '' ?>" alt="" id="img1">
+                <img src="<?= $images[1] ? '/vnm-system/php/cars/uploads/cars/'.urlencode($images[1]) : '' ?>" alt="" id="img2">
+                <img src="<?= $images[2] ? '/vnm-system/php/cars/uploads/cars/'.urlencode($images[2]) : '' ?>" alt="" id="img3">
+                <img src="<?= $images[3] ? '/vnm-system/php/cars/uploads/cars/'.urlencode($images[3]) : '' ?>" alt="" id="img4">
+            </div>
+            
+            <form action="rent.php" method="post" enctype="multipart/form-data">
+                
+                <input type="hidden" name="car_id" id="car_id_input" value=""> 
+                
+                <label for="car_model">Car Model: </label>
+                <input type="text" name="car_model" readonly required>                
+
+                <label for="pickup">Pickup Date: </label>
+                <input type="date" name="pickup" id="pickup" min="<?= date('Y-m-d'); ?>" required>
+                
+                <label for="time">Time: </label>
+                <input type="time" name="time" id="time" required>
+                
+                <label for="duration">Duration (Days): </label>
+                <input type="number" name="duration" id="duration" min="1" required>
+                
+                <label for="price">Total Price: </label>
+                <input type="number" name="price" id="price" readonly required> 
+
+                <label for="driver_license_photo">Driver's License Photo (Required): </label>
+                <input type="file" name="driver_license_photo" id="driver_license_photo" accept="image/jpeg,image/png" required>
+                
+                <button type="submit">Confirm</button>
+            </form>
+        </div>
+    </main>
+    <script src="../js/rent_form.js"></script>
+        <script src="../js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+:root{
+    --primary-font:'Poppins';
+    --secondary-font:'Arial';
+    --primary-color:#111;
+    --huge-padding:7.5vh;
+    --primary-padding:5vh;
+    --secondary-padding:2.5vh;
+    --xl-font:60px;
+    --l-font:48px;
+    --m-font:36px;
+    --n-font:24px;
+    --s-font:18px;
+    --xs-font:12px;
+    --l-radius:20px;
+    --radius:15px;
+    --s-radius:10px;
+}
+main{
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-y: auto;
+}
+@media (min-width:768px){
+   button{
+    background:transparent;
+    border: transparent;
+    box-shadow: 0px 0px 15px 0px rgba(0,0,0,0.125);
+    width: fit-content;
+    height: fit-content;
+    padding: var(--secondary-padding);
+    border-radius: var(--s-radius);
+    color: var(--primary-color);
+    margin-bottom: var(--primary-padding);
+   }
+   form{
+    display: none;
+    margin-bottom: var(--primary-padding);
+    font-family: var(--primary-font);
+   }
+   form button{
+    margin: 0;
+   }
+   .show{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: fit-content;
+    border-radius: var(--radius);
+    box-shadow: 0px 0px 15px 0px rgba(0,0,0,0.125);
+    flex-shrink: 0;
+    padding: var(--secondary-padding);
+    gap: var(--secondary-padding);
+   }
+   #file{
+    display: none;
+   }
+   .inputs{
+    display: flex;
+    flex-direction: column;
+   }
+   #imgInput{
+    display: flex;
+    gap: var(--primary-padding);
+    align-items: center;
+   }
+   #imgInput button{
+    margin-left: auto;
+   }
+   .addImage{
+    display: flex;
+    background-color: gainsboro;
+    width: 50%;
+    height: 50%;
+   }
+   .submit{
+    align-self: flex-end;
+   }
+   section{
+    height: fit-content;
+   }
+   h3{
+    font-family: var(--primary-font);
+    margin-bottom: var(--secondary-padding);
+   }
+   .vehicle{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: fit-content;
+    flex-shrink: 0;
+    border-radius: var(--radius);
+    box-shadow: 0px 0px 15px 0px rgba(0,0,0,0.125);
+    padding: var(--secondary-padding);
+    gap: var(--secondary-padding);
+   }
+   .vehicleContainer{
+    display: flex;
+    width: 100%;
+    height: 40vh;
+    gap: var(--secondary-padding);
+
+   }
+   .vehicleimg{
+    height: 100%;
+    aspect-ratio: 1/1;
+    outline: dashed grey;
+   }
+   .vehicleimg img{
+    max-height: 100%;
+   }
+   .vehicleinfo{
+    display: flex;
+    flex-direction: column;
+    gap: var(--secondary-padding);
+    font-family: var(--secondary-font);
+   }
+   .editInfo{
+    margin-top: auto;
+    margin-left: auto;
+    margin-bottom: 0;
+   }
+}

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VNM Car Rental - Login/Sign Up</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/login.css"> 
+
+<style>
+.password-wrapper { position: relative; width: 100%; }
+.password-wrapper input { width: 100%; padding-right: 40px; }
+.toggle-password { 
+    position: absolute; 
+    right: 12px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+    cursor: pointer; 
+    font-size: 18px; 
+}
+
+.error {
+    color: red;
+    font-size: 12px;
+    height: 14px;
+    margin-bottom: 5px;
+    display: block;
+}
+.form { display: none; }
+.form.active { display: block; }
+</style>
+</head>
+
+<body>
+
+<div class="auth-container">
+
+  <div class="left-side">
+    <img src="../photos/VNM logo.png" alt="VNM Logo" class="logo">
+    <h1 class="welcome-text">Welcome to VNM Car Rental</h1>
+  </div>
+
+  <div class="right-side">
+
+    <form id="loginForm" class="form <?php if ($initial_form === 'login') echo 'active'; ?>" method="POST" action="login.php">
+      <h2>Login Your Account</h2>
+      <?php if (!empty($login_error)) echo "<p style='color:red;text-align:center;'>$login_error</p>"; ?>
+
+      <input type="email" name="email" placeholder="Email" required>
+
+      <div class="password-wrapper">
+        <input type="password" name="password" id="loginPassword" placeholder="Password" required>
+        <span class="toggle-password" onclick="togglePassword('loginPassword', this)">👁</span>
+      </div>
+
+      <button type="submit" name="login">Login</button>
+      <p class="forgot"><a href="forgetpassword.php">Forgot password?</a></p>
+      <p class="switch-text">Don’t have an account? <a href="#" id="toSignup">Sign Up</a></p>
+    </form>
+
+    <form id="signupForm" class="form <?php if ($initial_form === 'signup') echo 'active'; ?>" method="POST" action="login.php" onsubmit="return validateSignup()">
+      <h2>Sign Up</h2>
+
+      <?php if (!empty($signup_success)) echo "<p style='color:green;text-align:center;'>$signup_success</p>"; ?>
+      <?php if (!empty($signup_error)) echo "<p style='color:red;text-align:center;'>$signup_error</p>"; ?>
+
+      <input type="text" name="fullname" id="fullname" placeholder="Full Name" required>
+      <small class="error" id="err_fullname"></small>
+
+      <input type="email" name="email" id="email" placeholder="Email" required>
+      <small class="error" id="err_email"></small>
+
+      <input type="text" name="phone" id="phone" placeholder="Phone Number" required>
+      <small class="error" id="err_phone"></small>
+
+      <input type="text" name="address" id="address" placeholder="Address" required>
+      <small class="error" id="err_address"></small>
+
+      <input type="text" name="license" id="license" placeholder="Driver’s License No." required pattern="^[A-Z]{3}\s?\d{2,4}$" title="Format: ABC 123, ABC 1234, or ABC 12 (letters then numbers)">
+      <small class="error" id="err_license"></small>
+
+      <div class="password-wrapper">
+        <input type="password" name="password" id="signupPassword" placeholder="Password" required>
+        <span class="toggle-password" onclick="togglePassword('signupPassword', this)">👁</span>
+      </div>
+      <small class="error" id="err_password"></small>
+
+      <button type="submit" name="signup">Create Account</button>
+      <p class="switch-text">Already have an account? <a href="#" id="toLogin">Login</a></p>
+    </form>
+  </div>
+</div>
+
+<script src="../js/login.js"></script>
+
+</body>
+</html>
