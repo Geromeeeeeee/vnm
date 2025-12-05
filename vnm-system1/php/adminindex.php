@@ -26,6 +26,21 @@
     $result2 = mysqli_query($conn, $query2);
     $sales_sum = mysqli_fetch_assoc($result2);
     $total_sales_value = $sales_sum['total_sales'];
+
+    $query3 = "SELECT COUNT(*) AS total_users FROM users";
+    $result3 = mysqli_query($conn, $query3);
+    $users = mysqli_fetch_assoc($result3);
+    $total_users = $users['total_users'];
+
+    $query4 = "SELECT COUNT(*) AS total_cars FROM cars";
+    $result4 = mysqli_query($conn, $query4);
+    $cars = mysqli_fetch_assoc($result4);
+    $total_cars = $cars['total_cars'];
+
+    $query5 = "SELECT COUNT(*) AS available FROM cars WHERE availability = 1";
+    $result5 = mysqli_query($conn, $query5);
+    $available = mysqli_fetch_assoc($result5);
+    $available_cars = $available['available'];
 ?>
 
 <!DOCTYPE html>
@@ -34,7 +49,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/common.css ?v=1.2">
-    <link rel="stylesheet" href="/vnm-system1/css/admin_panel.css ?v=1.13">
+    <link rel="stylesheet" href="/vnm-system1/css/admin_panel.css ?v=1.14">
     <title>VNM Admin</title>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
@@ -75,7 +90,28 @@
             <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
         </div>
     </nav>
+
     <main>
+        <section id="main-top">
+            <div class="total-users">
+                <h3>Total Users:</h3>
+                <?php   
+                    echo"<h1>{$total_users}</h1>";
+                ?>
+            </div>
+            <div class="total-cars">
+                <h3>Total Cars:</h3>
+                <?php   
+                    echo"<h1>{$total_cars}</h1>";
+                ?>
+            </div>
+            <div class="available-cars">
+                <h3>Available Cars:</h3>
+                <?php   
+                    echo"<h1>{$available_cars}</h1>";
+                ?>
+            </div>
+        </section>
         <h3>Total Sales</h3>
         <section class="total-sales">
             <div class="total-sales-value">
@@ -83,7 +119,7 @@
                     if($total_sales_value == 0 || $total_sales_value === null){
                         echo "<h3>No sales yet.</h3>";
                     } else{
-                        echo "<h1>{$total_sales_value}</h1>";
+                        echo "<h1>₱{$total_sales_value}</h1>";
                     }
                 ?>
             </div>

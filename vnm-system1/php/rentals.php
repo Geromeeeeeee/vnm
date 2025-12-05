@@ -43,7 +43,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/common.css ?v=1.2">
-    <link rel="stylesheet" href="../css/rentals.css ?v=1.04"> 
+    <link rel="stylesheet" href="../css/rentals.css ?v=1.05"> 
     <title>Rentals</title>
     <style>
        
@@ -137,6 +137,7 @@
                     <th>Time</th>
                     <th>Duration</th>
                     <th>Cost</th>
+                    <th>Payment Status</th>
                     <th>Action</th>
                 </tr>
                 <?php
@@ -158,6 +159,7 @@
                             <td>{$row['rental_date']}</td>
                             <td>{$row['rental_time']}</td>
                             <td>{$row['rental_duration_days']}</td>
+                            <td>{$row['total_cost']}</td>
                             <td>{$row['total_cost']}</td>
                             <td id='status-button'>
                                 <form action='rental_action.php' method='POST'>
@@ -192,6 +194,7 @@
                     <th>Time</th>
                     <th>Duration</th>
                     <th>Cost</th>
+                    <th>Payment Status</th>
                     <th>Action</th>
                 </tr>
                 <?php
@@ -214,6 +217,7 @@
                             <td>{$row['rental_date']}</td>
                             <td>{$row['rental_time']}</td>
                             <td>{$row['rental_duration_days']}</td>
+                            <td>{$row['total_cost']}</td>
                             <td>{$row['total_cost']}</td>
                             <td id='status-button'>
                                 <form action='history_action.php' method='POST'>

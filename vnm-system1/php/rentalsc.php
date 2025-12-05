@@ -67,7 +67,7 @@ $history_details = $stmt_history->get_result();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/rent_form.css">
-    <link rel="stylesheet" href="../css/rental.css?v=1.2"> 
+    <link rel="stylesheet" href="../css/rental.css?v=1.41"> 
     <title>My Rentals</title>
 </head>
 <body>
@@ -137,6 +137,7 @@ $history_details = $stmt_history->get_result();
                         <p>Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= $status_text ?></span></p>
                     </div>
                     <div class="action-status">
+                        <button popovertarget="payment-popover">Payment</button>
                         <p>Cost: ₱<?= number_format($row['total_cost'], 2) ?></p>
                     </div>
                 </div>
@@ -145,6 +146,20 @@ $history_details = $stmt_history->get_result();
                 <p>You have no past rental history.</p>
             <?php endif; ?>
         </section>
+        <div id="payment-popover" popover="auto">
+            <h3>Payment</h3>
+            <p>Car: </p>
+            <p>Amount Due: </p>
+                <form action="">
+                    <label for="payment-method">Payment Method: </label>
+                    <select name="payment-method" id="payment-method">
+                        <option value="gcash">GCash</option>
+                        <option value="maya">Maya</option>
+                        <option value="cash">Cash</option>
+                    </select>
+                    <button type="submit">Confirm Payment</button>
+                </form>
+        </div>
     </main>
 </body>
 </html>
