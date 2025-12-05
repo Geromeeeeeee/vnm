@@ -1,9 +1,15 @@
 <?php
 
+session_start();
 include 'db.php'; 
 
+// Get user_id from session
+if (!isset($_SESSION['user'])) {
+    header("Location: login.php");
+    exit;
+}
 
-$user_id = 9; 
+$user_id = (int) $_SESSION['user']; 
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: login-dashboard.php"); 
@@ -65,7 +71,7 @@ if (!$car_id || !$duration || !$total_cost || !strtotime($pickup_date) || !strto
 
 
 
-$stmt = $conn->prepare("INSERT INTO rental_requests (user_id, car_id, driver_license_photo, rental_date, rental_time, rental_duration_days, total_cost, request_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt = $conn->prepare("INSERT INTO rental_requests (user_id, car_id, driver_license_photo_path, rental_date, rental_time, rental_duration_days, total_cost, request_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     
 $stmt->bind_param("iisssids", 
     $user_id, 

@@ -1,13 +1,20 @@
 <?php
-// rentalsc.php (Customer View - No Session)
+// rentalsc.php (Customer View)
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+session_start();
 include 'db.php'; 
 
-// NOTE: Session management removed. This page now displays ALL rentals in the system.
+// Require login - show only rentals for the logged-in user
+if (!isset($_SESSION['user'])) {
+    header('Location: login.php');
+    exit;
+}
 
-// 1. Fetch UPCOMING/ACTIVE Rentals (Pending or Approved)
+$current_user_id = (int) $_SESSION['user'];
+
+// 1. Fetch UPCOMING/ACTIVE Rentals (Pending only - awaiting approval)
 $upcoming_sql = "
     SELECT 
         rr.request_id, 
@@ -21,15 +28,16 @@ $upcoming_sql = "
         c.daily_rate
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
-    WHERE rr.request_status IN ('Pending', 'Approved')
+    WHERE rr.request_status IN ('Pending')
+        AND rr.user_id = ?
     ORDER BY rr.rental_date ASC, rr.rental_time ASC";
 
 $stmt_upcoming = $conn->prepare($upcoming_sql);
+$stmt_upcoming->bind_param('i', $current_user_id);
 $stmt_upcoming->execute();
 $upcoming_details = $stmt_upcoming->get_result();
-$stmt_upcoming->close();
 
-// 2. Fetch HISTORY Rentals (Rejected or Cancelled)
+// 2. Fetch HISTORY Rentals (Approved, Rejected, or Cancelled)
 $history_sql = "
     SELECT 
         rr.request_id, 
@@ -42,16 +50,14 @@ $history_sql = "
         c.model
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
-    WHERE rr.request_status IN ('Rejected', 'Cancelled')
+    WHERE rr.request_status IN ('Approved', 'Rejected', 'Cancelled')
+        AND rr.user_id = ?
     ORDER BY rr.rental_date DESC, rr.rental_time DESC";
 
 $stmt_history = $conn->prepare($history_sql);
+$stmt_history->bind_param('i', $current_user_id);
 $stmt_history->execute();
 $history_details = $stmt_history->get_result();
-$stmt_history->close();
-
-// Close database connection
-$conn->close(); 
 ?>
 
 <!DOCTYPE html>
@@ -61,7 +67,7 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/rent_form.css">
-    <link rel="stylesheet" href="../css/rental.css?v=1.1"> 
+    <link rel="stylesheet" href="../css/rental.css?v=1.2"> 
     <title>My Rentals</title>
 </head>
 <body>
@@ -76,7 +82,7 @@ $conn->close();
     </nav>
     <main>
         <section id="upcoming">
-            <h3>Upcoming Rentals (Pending & Approved)</h3>
+            <h3>Pending Rental Requests (Awaiting Approval)</h3>
             <?php if ($upcoming_details->num_rows > 0): ?>
                 <?php while ($row = $upcoming_details->fetch_assoc()): 
                     $request_id = htmlspecialchars($row['request_id']);
@@ -116,7 +122,7 @@ $conn->close();
         <hr>
 
         <section id="history">
-            <h3>Rental History (Rejected & Cancelled)</h3>
+            <h3>Rental History (Approved, Rejected & Cancelled)</h3>
             <?php if ($history_details->num_rows > 0): ?>
                 <?php while ($row = $history_details->fetch_assoc()): 
                     $rental_date_display = date('F j, Y', strtotime($row['rental_date']));
@@ -142,3 +148,8 @@ $conn->close();
     </main>
 </body>
 </html>
+<?php
+$stmt_upcoming->close();
+$stmt_history->close();
+$conn->close();
+?>

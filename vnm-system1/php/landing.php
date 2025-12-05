@@ -23,7 +23,7 @@ if ($result) {
     $cars = $result->fetch_all(MYSQLI_ASSOC);
 }
 
-$upload_dir = '/vnm-system/php/cars/uploads/cars/';
+$upload_dir = '/vnm-system1/php/cars/uploads/cars/';
 
 $carousel_html = '';
 foreach ($cars as $car) {

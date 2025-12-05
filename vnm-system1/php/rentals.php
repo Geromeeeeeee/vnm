@@ -5,7 +5,7 @@
 
     $base_select = "
         rental_requests.request_id, 
-        rental_requests.driver_license_photo, 
+        rental_requests.driver_license_photo_path, 
         rental_requests.rental_date, 
         rental_requests.rental_time,
         rental_requests.total_cost,
@@ -34,7 +34,7 @@
     
 
     
-    $system_base_path = '/vnm-system/';
+    $system_base_path = '/vnm-system1/';
 ?>
 
 <!DOCTYPE html>
@@ -112,12 +112,12 @@
 </head>
 <body>
     <nav>
-        <div class="logo"><img src="/vnm-system/photos/VNM logo.png" alt="VNM logo"></div>
+        <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
         <div class="navLink">
-            <a href="/vnm-system/php/adminindex.php">Dashboard</a>
-            <a href="/vnm-system/php/cars/cars.php">Cars</a>
-            <a href="/vnm-system/php/rentals.php">Rentals</a>
-            <a href="/vnm-system/php/landing.php" id="logout">Logout</a>
+            <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
+            <a href="/vnm-system1/php/cars/cars.php">Cars</a>
+            <a href="/vnm-system1/php/rentals.php">Rentals</a>
+            <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
         </div>
     </nav>
     <main>
@@ -147,7 +147,7 @@
                 } else{
                     while ($row = mysqli_fetch_assoc($details)){
                         $request_id = htmlspecialchars($row['request_id']);
-                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo']);
+                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo_path']);
                         echo "
                         <tr>
                             <td>{$row['fullname']}</td>
@@ -203,7 +203,7 @@
                     while ($row = mysqli_fetch_assoc($approved_details)){
                         $request_id = htmlspecialchars($row['request_id']);
 
-                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo']);
+                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo_path']);
                         echo "
                         <tr>
                             <td>{$row['fullname']}</td>
@@ -253,7 +253,7 @@
                 } else{
                     while ($row = mysqli_fetch_assoc($declined_details)){
                         $request_id = htmlspecialchars($row['request_id']);
-                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo']);
+                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo_path']);
                         echo "
                         <tr>
                             <td>{$row['fullname']}</td>
@@ -303,7 +303,7 @@
                 } else{
                     while ($row = mysqli_fetch_assoc($cancelled_details)){
                         $request_id = htmlspecialchars($row['request_id']);
-                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo']);
+                        $license_photo_url = htmlspecialchars($system_base_path . $row['driver_license_photo_path']);
                         echo "
                         <tr>
                             <td>{$row['fullname']}</td>

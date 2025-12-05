@@ -26,7 +26,7 @@ if ($result) {
 }
 
 
-$upload_dir = '/vnm-system/php/cars/uploads/cars/';
+$upload_dir = '/vnm-system1/php/cars/uploads/cars/';
 
 
 $carousel_html = '';

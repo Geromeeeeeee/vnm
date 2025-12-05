@@ -181,8 +181,8 @@ $result = $conn->query($sql);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="/vnm-system/css/common.css"> 
-<link rel="stylesheet" href="/vnm-system/php/cars/cars.css">
+<link rel="stylesheet" href="/vnm-system1/css/common.css"> 
+<link rel="stylesheet" href="/vnm-system1/php/cars/cars.css">
 <title>VNM/Cars</title>
 <style>
 
@@ -351,12 +351,12 @@ table td, table th { text-align:center; }
 </head>
 <body>
 <nav>
-    <div class="logo"><img src="/vnm-system/photos/VNM logo.png" alt="VNM logo"></div>
+    <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
     <div class="navLink">
-        <a href="/vnm-system/php/adminindex.php">Dashboard</a>
-        <a href="/vnm-system/php/cars/cars.php">Cars</a>
-        <a href="/vnm-system/php/rentals.php">Rentals</a>
-        <a href="/vnm-system/php/landing.php" id="logout">Logout</a>
+        <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
+        <a href="/vnm-system1/php/cars/cars.php">Cars</a>
+        <a href="/vnm-system1/php/rentals.php">Rentals</a>
+        <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
     </div>
 </nav>
 

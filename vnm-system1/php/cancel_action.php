@@ -3,11 +3,19 @@
  * cancel_action.php
  * Handles customer-initiated cancellation of a rental request.
  */
-// NOTE: Session management removed.
-
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+
+session_start();
 include 'db.php'; 
+
+// Require login
+if (!isset($_SESSION['user'])) {
+    header("Location: login.php");
+    exit;
+}
+
+$current_user_id = (int) $_SESSION['user'];
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['request_id']) || $_POST['action'] !== 'cancel') {
     header("Location: rentalsc.php?error=access_denied");
@@ -17,7 +25,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['request_id']) || $_P
 $request_id = filter_var($_POST['request_id'], FILTER_SANITIZE_NUMBER_INT);
 $status = 'Cancelled'; 
 
-// 1. Begin Transaction 
+// 1. Verify the rental belongs to the current user
+$verify_sql = "SELECT user_id FROM rental_requests WHERE request_id = ?";
+$stmt_verify = $conn->prepare($verify_sql);
+$stmt_verify->bind_param("i", $request_id);
+$stmt_verify->execute();
+$verify_result = $stmt_verify->get_result();
+
+if ($verify_result->num_rows === 0) {
+    header("Location: rentalsc.php?error=not_found");
+    $stmt_verify->close();
+    exit;
+}
+
+$rental = $verify_result->fetch_assoc();
+if ((int)$rental['user_id'] !== $current_user_id) {
+    header("Location: rentalsc.php?error=unauthorized");
+    $stmt_verify->close();
+    exit;
+}
+$stmt_verify->close();
+
+// 2. Begin Transaction 
 $conn->begin_transaction();
 $success = false;
 

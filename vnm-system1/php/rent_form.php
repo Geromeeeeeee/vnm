@@ -1,7 +1,13 @@
 <?php
 
-
+session_start();
 include 'db.php'; 
+
+// Require login
+if (!isset($_SESSION['user'])) {
+    header("Location: login.php");
+    exit;
+} 
 
 if (!isset($_GET['car_id']) || !is_numeric($_GET['car_id'])) {
     header("Location: login-dashboard.php");
