@@ -50,11 +50,19 @@ if (isset($_POST['signup'])) {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $signup_error = "Invalid email format.";
         } else {
-            // FIXED DNS VALIDATION (MX OR A record)
+            // Domain existence check: only run if the function is available.
+            // Some PHP builds (or hosting environments) may not have DNS lookup
+            // functions available or network access, which can cause false negatives.
             $domain = substr(strrchr($email, "@"), 1);
-            // Note: checkdnsrr might be slow or blocked on some hosting.
-            if (!(checkdnsrr($domain, "MX") || checkdnsrr($domain, "A"))) {
-                $signup_error = "Email domain does not exist.";
+            if (function_exists('checkdnsrr')) {
+                // checkdnsrr returns false for many valid setups on some platforms,
+                // so keep this check non-blocking in environments where it fails.
+                if (!(checkdnsrr($domain, "MX") || checkdnsrr($domain, "A"))) {
+                    $signup_error = "Email domain does not appear to exist.";
+                }
+            } else {
+                // If the function is not present, skip strict DNS validation.
+                // This avoids rejecting valid emails on local/dev environments.
             }
         }
     }

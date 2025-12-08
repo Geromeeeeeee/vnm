@@ -15,7 +15,7 @@ $sql = "SELECT
             GROUP_CONCAT(ci.image_path ORDER BY ci.image_id SEPARATOR ',') AS additional_images 
         FROM cars c
         LEFT JOIN car_images ci ON c.car_id = ci.car_id
-        WHERE c.availability = 1
+        WHERE c.availability = 1  
         GROUP BY c.car_id
         ORDER BY c.car_id DESC";
 

@@ -1,4 +1,5 @@
 <?php
+// customer_rental_lifecycle.php (Customer View with Order Tracker)
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -9,6 +10,7 @@ $system_base_path = '/vnm-system1/';
 $gcash_qr_path = $system_base_path . 'uploads/payments/gcash_qr.png';
 $maya_qr_path = $system_base_path . 'uploads/payments/maya_qr.png';
 
+// Require login
 if (!isset($_SESSION['user'])) {
     header('Location: login.php');
     exit;
@@ -16,16 +18,13 @@ if (!isset($_SESSION['user'])) {
 
 $current_user_id = (int) $_SESSION['user'];
 
-
+// --- Payment Proof Submission Handler ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_payment_proof') {
     
     $request_id = filter_input(INPUT_POST, 'request_id', FILTER_VALIDATE_INT);
     $payment_method = filter_input(INPUT_POST, 'payment_method', FILTER_SANITIZE_STRING);
-    // RESTORING: Capture and sanitize reference number, expecting a number
-    $payment_reference_no = filter_input(INPUT_POST, 'payment_reference_no', FILTER_SANITIZE_NUMBER_INT); 
     
-    // RESTORING: Check for reference number
-    if (!$request_id || !$payment_method || empty($payment_reference_no)) {
+    if (!$request_id || !$payment_method) {
         header("Location: rentalsc.php?error=invalid_payment_data");
         exit;
     }
@@ -55,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         
         if (move_uploaded_file($file_tmp, $target_file)) {
+            // Note: The path stored in DB should be relative to the application's root for easy access
             $proof_path = 'uploads/payments/' . $unique_name; 
         } else {
             error_log("Payment proof upload failed for request $request_id.");
@@ -66,14 +66,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
 
-    // UPDATED: Added payment_reference_no to the UPDATE statement
-    // Note: The status is set to 'Proof Uploaded' even on re-submission for re-verification
     $update_sql = "
         UPDATE rental_requests 
         SET payment_status = 'Proof Uploaded', 
             payment_proof_path = ?,
-            payment_method = ?,
-            payment_reference_no = ?
+            payment_method = ?
         WHERE request_id = ? AND user_id = ?"; 
         
     $stmt_update = $conn->prepare($update_sql);
@@ -84,12 +81,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
     
-    // UPDATED: Added $payment_reference_no to bind_param
-    $stmt_update->bind_param("sssii", $proof_path, $payment_method, $payment_reference_no, $request_id, $current_user_id);
+    $stmt_update->bind_param("ssii", $proof_path, $payment_method, $request_id, $current_user_id);
 
     if ($stmt_update->execute()) {
-
-        header("Location: rentalsc.php?success=payment_proof_uploaded");
+        // NOTE: Redirecting to rentalsc.php to maintain consistency with the original handler
+        header("Location: rentalsc.php?success=payment_proof_uploaded"); 
         exit;
     } else {
         error_log("DB update error on payment proof: " . $stmt_update->error);
@@ -98,65 +94,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-
-// RESTORING: Added rr.admin_notes
-$upcoming_sql = "
+// --- 1. Fetch CURRENT/UPCOMING/ACTIVE Rentals (Pending, Approved, Picked Up) ---
+$current_sql = "
     SELECT 
-        rr.request_id, 
-        rr.rental_date, 
-        rr.rental_time,
-        rr.rental_duration_days,
-        rr.total_cost,
-        rr.request_status,
-        rr.payment_status,
-        rr.admin_notes,
-        c.car_brand,
-        c.model,
-        c.daily_rate
+        rr.request_id, rr.rental_date, rr.rental_time, rr.rental_duration_days, rr.total_cost, rr.request_status, rr.payment_status,
+        c.car_brand, c.model, c.plate_no,
+        pd.pickup_date_actual, pd.odometer_pickup, pd.car_condition_pickup
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
-    WHERE rr.request_status IN ('Pending')
+    LEFT JOIN rental_pickup_details pd ON rr.request_id = pd.request_id
+    WHERE rr.request_status IN ('Pending', 'Approved', 'Picked Up')
         AND rr.user_id = ?
-    ORDER BY rr.rental_date ASC, rr.rental_time ASC";
+    ORDER BY FIELD(rr.request_status, 'Picked Up', 'Approved', 'Pending') ASC, rr.rental_date ASC";
 
-$stmt_upcoming = $conn->prepare($upcoming_sql);
-$stmt_upcoming->bind_param('i', $current_user_id);
-$stmt_upcoming->execute();
-$upcoming_details = $stmt_upcoming->get_result();
+$stmt_current = $conn->prepare($current_sql);
+$stmt_current->bind_param('i', $current_user_id);
+$stmt_current->execute();
+$current_details = $stmt_current->get_result();
 
-// RESTORING: Added rr.admin_notes and rr.payment_reference_no
+// --- 2. Fetch HISTORY/COMPLETED Rentals (Returned, Rejected, Cancelled) ---
 $history_sql = "
     SELECT 
-        rr.request_id, 
-        rr.rental_date, 
-        rr.rental_time,
-        rr.rental_duration_days,
-        rr.total_cost,
-        rr.request_status,
-        rr.payment_status,
-        rr.admin_notes,
-        rr.payment_reference_no,
-        c.car_brand,
-        c.model,
-        c.daily_rate
+        rr.request_id, rr.rental_date, rr.rental_time, rr.total_cost, rr.request_status, rr.payment_status,
+        c.car_brand, c.model, c.plate_no,
+        pd.odometer_pickup,
+        rd.odometer_return, rd.return_date_actual, rd.damage_fee
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
-    WHERE rr.request_status IN ('Approved', 'Rejected', 'Cancelled')
+    LEFT JOIN rental_pickup_details pd ON rr.request_id = pd.request_id
+    LEFT JOIN rental_return_details rd ON rr.request_id = rd.request_id
+    WHERE rr.request_status IN ('Returned', 'Rejected', 'Cancelled')
         AND rr.user_id = ?
-    ORDER BY 
-        CASE rr.request_status
-            WHEN 'Approved' THEN 1
-            WHEN 'Rejected' THEN 2
-            WHEN 'Cancelled' THEN 3
-            ELSE 4
-        END,
-        rr.rental_date DESC, 
-        rr.rental_time DESC";
+    ORDER BY rr.rental_date DESC";
 
 $stmt_history = $conn->prepare($history_sql);
 $stmt_history->bind_param('i', $current_user_id);
 $stmt_history->execute();
 $history_details = $stmt_history->get_result();
+
 ?>
 
 <!DOCTYPE html>
@@ -167,8 +142,9 @@ $history_details = $stmt_history->get_result();
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/rent_form.css">
     <link rel="stylesheet" href="../css/rental.css?v=1.41"> 
-    <title>My Rentals</title>
+    <title>My Rental Lifecycle</title>
     <style>
+        /* CSS from rentalsc.php for consistent popover styling */
         #payment-popover {
             background-color: black; 
             border: 1px solid #444; 
@@ -236,99 +212,37 @@ $history_details = $stmt_history->get_result();
     </style>
 </head>
 <body>
-    <nav>
+     <nav>
         <h3>VNM Car Rental</h3>
         <a href="../php/login-dashboard.php">Home</a>
         <a href="#cars">Cars</a>
         <a href="#aboutUs">About</a>
-        <a href="../php/rentalsc.php">Rental Request</a>
-        <a href="../php/customer_lifecycle.php">Car History</a>
+        <a href="../php/rentalsc.php">Rentals</a>
+        <a href="../php/customer_lifecycle.php">Car Status</a>
         <button popovertarget="logout">Logout</button>
     </nav>
     <main>
         <section id="upcoming">
-            <h3>Pending Rental Requests (Awaiting Approval)</h3>
-            <?php if ($upcoming_details->num_rows > 0): ?>
-                <?php while ($row = $upcoming_details->fetch_assoc()): 
+            <h3>Active & Upcoming Rentals (Pending, Approved, Picked Up)</h3>
+            <?php if ($current_details->num_rows > 0): ?>
+                <?php while ($row = $current_details->fetch_assoc()): 
                     $request_id = htmlspecialchars($row['request_id']);
                     $rental_date_display = date('F j, Y', strtotime($row['rental_date']));
-                    $car_display = "{$row['car_brand']} {$row['model']}";
+                    $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
                     $status_text = htmlspecialchars($row['request_status']);
                     $payment_status = htmlspecialchars($row['payment_status']);
-                    // RESTORING: admin_notes
-                    $admin_notes = htmlspecialchars($row['admin_notes']);
                     
-                    $status_color = ($status_text === 'Approved') ? 'green' : (($status_text === 'Pending') ? 'orange' : 'black');
-
-                    $payment_status_color = '#dc3545'; 
-                    if ($payment_status === 'Paid') {
-                        $payment_status_color = 'darkgreen';
-                    } elseif ($payment_status === 'Proof Uploaded') {
-                        $payment_status_color = '#007bff'; 
-                    }
-                    // NEW: Color for Correction Required
-                    elseif ($payment_status === 'Correction Required') {
-                         $payment_status_color = '#ffc107'; 
-                    }
-                ?>
-                <div class="rental-detail">
-                    <div class="detail">
-                        <h4><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></h4>
-                        <p><?= $car_display ?></p>
-                        <p>Request Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= $status_text ?></span></p>
-                        <p>Payment Status: <span style="font-weight: bold; color: <?= $payment_status_color ?>;"><?= $payment_status ?></span></p>
-                        
-                        <?php if (!empty($admin_notes)): // RESTORING: admin_notes display?>
-                            <p style="margin-top: 10px;">
-                                <strong>Admin Note:</strong> 
-                                <span style="font-style: italic; color: #ccc;"><?= nl2br($admin_notes) ?></span>
-                            </p>
-                        <?php endif; ?>
-                        
-                    </div>
-                    
-                    <form action="cancel_action.php" method="POST">
-                        <input type="hidden" name="request_id" value="<?= $request_id ?>">
-                        
-                        <?php if ($status_text === 'Pending'): ?>
-                            <input type="hidden" name="action" value="cancel">
-                            <button type="submit" onclick="return confirm('Are you sure you want to cancel this rental?');">Cancel</button>
-                        <?php endif; ?>
-                    </form>
-                </div>
-                
-                <?php endwhile; ?>
-            <?php else: ?>
-                <p>You have no pending rental requests.</p>
-            <?php endif; ?>
-        </section>
-        
-        <hr>
-
-        <section id="history">
-            <h3>Rental History (Approved, Rejected & Cancelled)</h3>
-            <?php if ($history_details->num_rows > 0): ?>
-                <?php while ($row = $history_details->fetch_assoc()): 
-                    $rental_date_display = date('F j, Y', strtotime($row['rental_date']));
-                    $car_display = "{$row['car_brand']} {$row['model']}";
-                    $status_text = htmlspecialchars($row['request_status']);
-                    $payment_status = htmlspecialchars($row['payment_status']);
-                    // RESTORING: admin_notes
-                    $admin_notes = htmlspecialchars($row['admin_notes']);
-                    
-                    $status_color = 'grey'; 
-                    if ($status_text === 'Rejected') $status_color = 'red';
-                    if ($status_text === 'Approved') $status_color = 'green';
+                    // Color coding for main status
+                    $status_color = 'grey';
+                    if ($status_text === 'Pending') $status_color = 'orange';
+                    if ($status_text === 'Approved') $status_color = '#007bff';
+                    if ($status_text === 'Picked Up') $status_color = 'green';
                     
                     $payment_status_color = '#dc3545'; 
                     if ($payment_status === 'Paid') {
                         $payment_status_color = 'darkgreen';
                     } elseif ($payment_status === 'Proof Uploaded') {
                         $payment_status_color = '#007bff'; 
-                    } 
-                    // NEW: Color for Correction Required
-                    elseif ($payment_status === 'Correction Required') {
-                         $payment_status_color = '#ffc107'; 
                     }
                     
                     $popover_data = json_encode([
@@ -339,43 +253,92 @@ $history_details = $stmt_history->get_result();
                 ?>
                 <div class="rental-detail">
                     <div class="detail">
-                        <h4><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></h4>
-                        <p><?= $car_display ?></p>
+                        <h4><?= $car_display ?></h4>
+                        <p>Scheduled Pickup: <strong><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></strong></p>
+                        <p>Duration: <?= htmlspecialchars($row['rental_duration_days']) ?> Days | Cost: ₱<?= number_format($row['total_cost'], 2) ?></p>
                         <p>Request Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= $status_text ?></span></p>
+                        <p>Payment Status: <span style="font-weight: bold; color: <?= $payment_status_color ?>;"><?= $payment_status ?></span></p>
                         
-                        <?php if ($status_text === 'Approved'): ?>
-                            <p>Payment Status: <span style="font-weight: bold; color: <?= $payment_status_color ?>;"><?= $payment_status ?></span></p>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($admin_notes)): // RESTORING: admin_notes display ?>
-                            <p style="margin-top: 10px;">
-                                <strong>Admin Note:</strong> 
-                                <span style="font-style: italic; color: #ccc;"><?= nl2br($admin_notes) ?></span>
+                        <?php if ($status_text === 'Picked Up'): ?>
+                            <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
+                                Actual Pickup Date: <?= date('M j, Y', strtotime($row['pickup_date_actual'])) ?><br>
+                                Pickup Mileage: <?= number_format($row['odometer_pickup'] ?? 0) ?> km
                             </p>
                         <?php endif; ?>
-                        
                     </div>
                     <div class="action-status">
                         <?php if ($status_text === 'Approved' && $payment_status === 'Unpaid'): ?>
-                        <button 
-                            id="payment-button-<?= $row['request_id'] ?>" 
-                            data-popover-details='<?= htmlspecialchars($popover_data, ENT_QUOTES, 'UTF-8') ?>' 
-                            onclick="openPaymentPopover(this)"
-                            popovertarget="payment-popover"
-                        >Payment</button>
-                        <?php elseif ($status_text === 'Approved' && $payment_status === 'Proof Uploaded'): ?>
-                            <p style="color: #007bff; font-weight: bold; margin: 0;">Proof Awaiting Admin Check</p>
-                        <?php elseif ($status_text === 'Approved' && $payment_status === 'Correction Required'): // NEW: Re-submit button ?>
-                            <p style="color: #ffc107; font-weight: bold; margin: 0;">Payment Correction Needed</p>
                             <button 
                                 id="payment-button-<?= $row['request_id'] ?>" 
                                 data-popover-details='<?= htmlspecialchars($popover_data, ENT_QUOTES, 'UTF-8') ?>' 
                                 onclick="openPaymentPopover(this)"
                                 popovertarget="payment-popover"
-                                style="background-color: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; margin-top: 5px;"
-                            >Re-submit Payment</button>
+                                style="background-color: #ffc107; color: black; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;"
+                            >Upload Payment Proof</button>
+                        <?php elseif ($status_text === 'Approved' && $payment_status === 'Proof Uploaded'): ?>
+                            <p style="color: #007bff; font-weight: bold; margin: 0;">Proof Awaiting Admin Check</p>
+                        <?php elseif ($status_text === 'Pending'): ?>
+                            <p style="color: orange; font-weight: bold; margin: 0;">Awaiting Admin Approval</p>
+                            <form action="cancel_action.php" method="POST" onsubmit="return confirm('Are you sure you want to cancel this rental?');">
+                                <input type="hidden" name="request_id" value="<?= $request_id ?>">
+                                <input type="hidden" name="action" value="cancel">
+                                <button type="submit" style="background-color: grey; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-top: 10px;">Cancel Request</button>
+                            </form>
+                        <?php elseif ($status_text === 'Picked Up'): ?>
+                            <p style="color: green; font-weight: bold; margin: 0;">ACTIVE RENTAL</p>
                         <?php endif; ?>
+                        
+                    </div>
+                </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <p>You have no pending, approved, or active rentals.</p>
+            <?php endif; ?>
+        </section>
+
+        <hr>
+
+        <section id="history">
+            <h3>Rental History (Returned, Rejected, Cancelled)</h3>
+            <?php if ($history_details->num_rows > 0): ?>
+                <?php while ($row = $history_details->fetch_assoc()): 
+                    $rental_date_display = date('F j, Y', strtotime($row['rental_date']));
+                    $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
+                    $status_text = htmlspecialchars($row['request_status']);
+                    
+                    $status_color = 'grey'; 
+
+                    if ($status_text === 'Returned') {
+                        $status_color = 'darkgreen';
+                    } elseif ($status_text === 'Rejected') {
+                        $status_color = 'red';
+                    } elseif ($status_text === 'Cancelled') {
+                        $status_color = 'grey';
+                    }
+                ?>
+                <div class="rental-detail">
+                    <div class="detail">
+                        <h4><?= $car_display ?></h4>
+                        <p>Scheduled Pickup: <strong><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></strong></p>
                         <p>Cost: ₱<?= number_format($row['total_cost'], 2) ?></p>
+                        <p>Final Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= strtoupper($status_text) ?></span></p>
+                        
+                        <?php if ($status_text === 'Returned'): ?>
+                            <p style="font-size: 0.9em; margin-top: 10px; color: #ccc;">
+                                <strong>Return Date:</strong> <?= date('F j, Y', strtotime($row['return_date_actual'])) ?><br>
+                                <strong>Distance Traveled:</strong> <?= number_format($row['odometer_return'] - $row['odometer_pickup']) ?> km
+                            </p>
+                            <?php if ($row['damage_fee'] > 0): ?>
+                                <p style="color: red; font-weight: bold;">Damage/Extra Fee: ₱<?= number_format($row['damage_fee'], 2) ?></p>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="action-status">
+                        <?php if ($status_text === 'Returned'): ?>
+                            <p style="color: darkgreen; font-weight: bold; margin: 0;">COMPLETED</p>
+                        <?php else: ?>
+                            <p style="color: <?= $status_color ?>; font-weight: bold; margin: 0;">STOPPED</p>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <?php endwhile; ?>
@@ -390,29 +353,26 @@ $history_details = $stmt_history->get_result();
             <p><strong>Amount Due:</strong> ₱<span id="popoverTotalCost"></span></p>
             <hr>
 
-            <form id="payment-form" action="rentalsc.php" method="POST" enctype="multipart/form-data">
+            <form id="payment-form" action="customer_lifecycle.php" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="submit_payment_proof">
                 <input type="hidden" name="request_id" id="popoverRequestId">
                 <input type="hidden" name="payment_method" id="popoverPaymentMethod">
 
                 <label for="payment-method-select"><strong>Payment Method:</strong></label>
-                <select name="payment_method_select" id="payment-method-select" onchange="showQr(this.value)" style="width: 100%; padding: 5px; margin-bottom: 10px;">
+                <select name="payment_method_select" id="payment-method-select" onchange="showQr(this.value)" style="width: 100%; padding: 8px; margin-bottom: 10px;">
                     <option value="">-- Select --</option>
                     <option value="gcash">GCash</option>
                     <option value="maya">Maya</option>
                 </select>
                 
                 <div id="qr-display-container" style="text-align: center; margin-bottom: 10px;">
-                    <p id="qr-instructions" style="font-style: italic; color: #ddd;">QR Code will appear here after selection.</p>
+                    <p id="qr-instructions" style="font-style: italic;">QR Code will appear here after selection.</p>
                     <img id="popoverGcashQr" src="<?= htmlspecialchars($gcash_qr_path) ?>" alt="GCash QR Code" style="display:none;">
                     <img id="popoverMayaQr" src="<?= htmlspecialchars($maya_qr_path) ?>" alt="Maya QR Code" style="display:none;">
                 </div>
                 
-                <label for="payment-proof-file"><strong>Upload Proof of Payment:</strong></label>
-                <input type="file" name="payment_proof" id="payment-proof-file" required style="width: 100%; margin: 5px 0;">
-                
-                <label for="payment-reference-no" style="margin-top: 10px; display: block;"><strong>Reference/Transaction Number:</strong></label> 
-                <input type="number" name="payment_reference_no" id="payment-reference-no" required placeholder="e.g., 1234567890" style="width: 100%; padding: 8px; border-radius: 4px; box-sizing: border-box; background-color: #333; color: white; border: 1px solid #aaa; margin-bottom: 10px;">
+                <label for="payment-proof-file"><strong>Upload Proof of Payment (Image/PDF):</strong></label>
+                <input type="file" name="payment_proof" id="payment-proof-file" accept="image/*,application/pdf" required style="width: 100%; margin: 5px 0;">
                 
                 <button type="submit">Upload Proof & Confirm</button>
             </form>
@@ -423,7 +383,6 @@ $history_details = $stmt_history->get_result();
     </main>
     
     <script>
-        const paymentPopover = document.getElementById("payment-popover");
         const popoverRequestId = document.getElementById('popoverRequestId');
         const popoverPaymentMethod = document.getElementById('popoverPaymentMethod');
         const paymentMethodSelect = document.getElementById('payment-method-select');
@@ -432,18 +391,17 @@ $history_details = $stmt_history->get_result();
         const gcashQr = document.getElementById('popoverGcashQr');
         const mayaQr = document.getElementById('popoverMayaQr');
         const qrInstructions = document.getElementById('qr-instructions');
-        // RESTORING: Reference to the number input
-        const paymentReferenceNo = document.getElementById('payment-reference-no'); 
 
         function openPaymentPopover(button) {
             try {
+                // Parse details from the button's data attribute
                 const data = JSON.parse(button.getAttribute('data-popover-details'));
                 
                 popoverCar.textContent = data.car_display;
                 popoverTotalCost.textContent = data.total_cost;
-                
                 popoverRequestId.value = data.request_id;
                 
+                // Reset QR display and selection
                 paymentMethodSelect.value = ""; 
                 showQr(""); 
                 
@@ -477,22 +435,19 @@ $history_details = $stmt_history->get_result();
                 return false;
             }
             if (document.getElementById('payment-proof-file').files.length === 0) {
-                 alert("Please select a file for proof of payment.");
-                 return false;
-            }
-            // RESTORING: Numeric validation
-            if (paymentReferenceNo.value.trim() === "" || isNaN(paymentReferenceNo.value)) {
-                alert("Please enter a valid numeric Reference/Transaction Number.");
+                alert("Please select a file for proof of payment.");
                 return false;
             }
             return true;
         };
 
+        // Handle URL parameters after successful upload
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('success') === 'payment_proof_uploaded') {
                 alert("Payment proof successfully uploaded! Please wait for admin verification.");
                 
+                // Clean the URL to remove the success parameter after the alert
                 if (history.replaceState) {
                     const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                     history.replaceState({path:cleanUrl},'',cleanUrl);
@@ -503,7 +458,7 @@ $history_details = $stmt_history->get_result();
 </body>
 </html>
 <?php
-$stmt_upcoming->close();
+$stmt_current->close();
 $stmt_history->close();
 $conn->close();
 ?>

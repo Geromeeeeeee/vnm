@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
         $success = false;
         
         try {
+            // 1. Get car ID
             $car_id_sql = "SELECT car_id FROM rental_requests WHERE request_id = ?";
             $stmt = $conn->prepare($car_id_sql);
             $stmt->bind_param("i", $request_id);
@@ -27,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
             }
             $stmt->close();
             
+            // 2. Update rental request status
             $update_request_sql = "UPDATE rental_requests SET request_status = ? WHERE request_id = ?";
             $stmt = $conn->prepare($update_request_sql);
             $stmt->bind_param("si", $status, $request_id);
@@ -35,8 +37,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
             }
             $stmt->close();
 
-            $update_car_sql = "UPDATE cars SET is_available = 0 WHERE car_id = ?";
+            // 3. Update car availability status to 0 (Unavailable)
+            $update_car_sql = "UPDATE cars SET availability = 0 WHERE car_id = ?";
             $stmt = $conn->prepare($update_car_sql);
+            if ($stmt === false) {
+                 throw new Exception("SQL Prepare Failed (Car Update): " . $conn->error);
+            }
             $stmt->bind_param("i", $car_id);
             if (!$stmt->execute()) {
                 throw new Exception("Failed to update car availability.");
@@ -72,13 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
             header("Location: rentals.php?error=decline_failed");
         }
         $stmt->close();
-    } else {
-        header("Location: rentals.php?error=invalid_action");
     }
-
 } else {
-    header("Location: rentals.php?error=missing_data");
+    header("Location: rentals.php?error=invalid_action");
 }
-$conn->close();
-exit;
 ?>

@@ -69,7 +69,7 @@
             title: 'Sales',
             minValue: 0
         },
-        colors: ['#555']
+        colors: ['#666']
         };
 
         var chart = new google.visualization.ColumnChart(document.getElementById('columnchart'));
@@ -80,17 +80,15 @@
 </head>
 <body>
     <nav>
-        <div class="logo">
-            <img src="../photos/VNM logo.png" alt="">
-        </div>
-        <div class="navLink">
-            <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
-            <a href="/vnm-system1/php/cars/cars.php">Cars</a>
-            <a href="/vnm-system1/php/rentals.php">Rentals</a>
-            <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
-        </div>
-    </nav>
-
+    <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
+    <div class="navLink">
+        <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
+        <a href="/vnm-system1/php/cars/cars.php">Cars</a>
+        <a href="/vnm-system1/php/rentals.php">Rentals</a>
+        <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
+        <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
+    </div>
+</nav>
     <main>
         <section id="main-top">
             <div class="total-users">

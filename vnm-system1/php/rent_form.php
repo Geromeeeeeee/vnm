@@ -3,7 +3,6 @@
 session_start();
 include 'db.php'; 
 
-// Require login
 if (!isset($_SESSION['user'])) {
     header("Location: login.php");
     exit;
@@ -16,14 +15,14 @@ if (!isset($_GET['car_id']) || !is_numeric($_GET['car_id'])) {
 
 $car_id = $_GET['car_id'];
 
-$car_sql = "SELECT model, daily_rate, image FROM cars WHERE car_id = ?";
+$car_sql = "SELECT model, daily_rate, image FROM cars WHERE car_id = ? AND availability = 1";
 $stmt = $conn->prepare($car_sql);
 $stmt->bind_param("i", $car_id);
 $stmt->execute();
 $car_result = $stmt->get_result();
 
 if ($car_result->num_rows === 0) {
-    header("Location: login-dashboard.php");
+    header("Location: login-dashboard.php?error=" . urlencode("The requested car is currently unavailable for rent or does not exist."));
     exit;
 }
 
@@ -48,7 +47,6 @@ while ($row = $images_result->fetch_assoc()) {
 }
 
 $images = array_pad($images, 4, ''); 
-
 
 ?>
 <script>

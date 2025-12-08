@@ -1,9 +1,23 @@
 <?php 
 error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-    
-    include '../db.php';
+ini_set('display_errors', 1);
 
+include '../db.php';
+
+// ===========================================
+// NEW FUNCTION TO CHECK ACTIVE RENTAL STATUS
+// ===========================================
+function isCarCurrentlyRented($car_id, $conn) {
+    // Check if the car is currently involved in a rental that has been 'Picked Up' (Active rental)
+    $sql = "SELECT request_id FROM rental_requests WHERE car_id = ? AND request_status = 'Picked Up'";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('i', $car_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $is_rented = $result->num_rows > 0;
+    $stmt->close();
+    return $is_rented;
+}
 
 function handleMultipleImageUpload($car_id, $conn) {
     $uploadDir = "uploads/cars/";
@@ -43,6 +57,46 @@ if (isset($_POST['delete_image_id'])) {
         } else {
             echo "Error deleting additional image: " . $conn->error;
         }
+    }
+}
+
+// ===========================================
+// DELETE HANDLER WITH RENTAL CHECK
+// ===========================================
+if (isset($_POST['delete_id'])) {
+    $car_id = $_POST['delete_id'];
+    
+    if (isCarCurrentlyRented($car_id, $conn)) {
+        // Prevent deletion if the car is actively rented
+        echo "<p style='color:red;'>Cannot delete car: Vehicle is currently RENTED.</p>";
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit();
+    }
+    
+    // ... Original deletion logic continues below
+    
+    $result = $conn->query("SELECT image FROM cars WHERE car_id=$car_id");
+    if ($result && $row = $result->fetch_assoc()) {
+        $uploadDir = "uploads/cars/";
+        if (!empty($row['image']) && file_exists($uploadDir . $row['image'])) {
+            unlink($uploadDir . $row['image']);
+        }
+    }
+    $result_images = $conn->query("SELECT image_path FROM car_images WHERE car_id=$car_id");
+    if ($result_images) {
+        $uploadDir = "uploads/cars/";
+        while($img_row = $result_images->fetch_assoc()) {
+            if (!empty($img_row['image_path']) && file_exists($uploadDir . $img_row['image_path'])) {
+                unlink($uploadDir . $img_row['image_path']);
+            }
+        }
+    }
+
+    if ($conn->query("DELETE FROM cars WHERE car_id=$car_id") === TRUE) {
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit();
+    } else {
+        echo "Error deleting vehicle: " . $conn->error;
     }
 }
 
@@ -89,6 +143,9 @@ if (isset($_POST['model']) && !isset($_POST['edit_id'])) {
 }
 
 
+// ===========================================
+// EDIT HANDLER WITH RENTAL CHECK
+// ===========================================
 if (isset($_POST['edit_id'])) {
     $car_id = $_POST['edit_id'];
     $model = $_POST['model'];
@@ -105,8 +162,18 @@ if (isset($_POST['edit_id'])) {
     $fuel_type = $_POST['fuel_type'];
     $transmission = $_POST['transmission']; // NEW FIELD
     $location_id = $_POST['location_id'];
-    $availability = isset($_POST['availability']) ? $_POST['availability'] : 1; 
     $description = $_POST['description'];
+    
+    $is_rented_active = isCarCurrentlyRented($car_id, $conn); // Check rental status
+
+    $availability_update_clause = "";
+    if (!$is_rented_active) {
+        // Only update availability if the car is NOT currently rented
+        $availability = isset($_POST['availability']) ? $_POST['availability'] : 1; 
+        $availability_update_clause = ", availability='$availability'";
+    } 
+    // If rented, we intentionally omit the availability update to prevent manual overrides.
+
 
     $imageSQL = '';
     if (!empty($_FILES['image']['name'])) {
@@ -128,10 +195,10 @@ if (isset($_POST['edit_id'])) {
 
     handleMultipleImageUpload($car_id, $conn);
 
-    // UPDATED SQL UPDATE
+    // UPDATED SQL UPDATE - Note the inclusion of $availability_update_clause
     $sql_update = "UPDATE cars 
                       SET model='$model', plate_no='$plate_no', car_brand='$car_brand', year='$year', daily_rate='$daily_rate', owner='$owner',
-                          fuel_type='$fuel_type', transmission='$transmission', location_id='$location_id', availability='$availability', description='$description' $imageSQL
+                          fuel_type='$fuel_type', transmission='$transmission', location_id='$location_id', description='$description' $imageSQL $availability_update_clause
                       WHERE car_id=$car_id";
 
     if ($conn->query($sql_update) === TRUE) {
@@ -142,35 +209,6 @@ if (isset($_POST['edit_id'])) {
     }
 }
 
-
-if (isset($_POST['delete_id'])) {
-    $car_id = $_POST['delete_id'];
-
-    
-    $result = $conn->query("SELECT image FROM cars WHERE car_id=$car_id");
-    if ($result && $row = $result->fetch_assoc()) {
-        $uploadDir = "uploads/cars/";
-        if (!empty($row['image']) && file_exists($uploadDir . $row['image'])) {
-            unlink($uploadDir . $row['image']);
-        }
-    }
-    $result_images = $conn->query("SELECT image_path FROM car_images WHERE car_id=$car_id");
-    if ($result_images) {
-        $uploadDir = "uploads/cars/";
-        while($img_row = $result_images->fetch_assoc()) {
-            if (!empty($img_row['image_path']) && file_exists($uploadDir . $img_row['image_path'])) {
-                unlink($uploadDir . $img_row['image_path']);
-            }
-        }
-    }
-
-    if ($conn->query("DELETE FROM cars WHERE car_id=$car_id") === TRUE) {
-        header("Location: ".$_SERVER['PHP_SELF']);
-        exit();
-    } else {
-        echo "Error deleting vehicle: " . $conn->error;
-    }
-}
 
 $sql = "SELECT * FROM cars ORDER BY car_id DESC";
 $result = $conn->query($sql);
@@ -240,7 +278,9 @@ div:popover-open{
     box-shadow: 0 0px 8px rgba(0,0,0,0.1);
 }
 
-#edit-form-popover form{
+/* FIX: Updated CSS selector to target forms inside any popover whose ID starts with 'edit-form-popover-' 
+        This is necessary because the previous fix made the popover IDs unique. */
+div[id^="edit-form-popover-"] form{
     display: block;
 }   
 
@@ -309,7 +349,12 @@ img.preview { width:80px; height:80px; object-fit:cover; border-radius:4px; curs
 }
 
 
-table td, table th { text-align:center; }
+table td, table th { 
+    text-align:center; 
+    padding:2.5vh;
+    height: 3vh;
+    width: fit-content;
+}
 
 .gallery-modal-content {
     display: flex;
@@ -356,6 +401,7 @@ table td, table th { text-align:center; }
         <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
         <a href="/vnm-system1/php/cars/cars.php">Cars</a>
         <a href="/vnm-system1/php/rentals.php">Rentals</a>
+        <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
         <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
     </div>
 </nav>
@@ -425,6 +471,20 @@ table td, table th { text-align:center; }
     }
 
     while($row = $result->fetch_assoc()): 
+    
+    // Check if car is currently rented for UI/Security checks
+    $car_id = $row['car_id'];
+    $is_rented_active = isCarCurrentlyRented($car_id, $conn);
+    $delete_disabled = $is_rented_active ? 'disabled' : '';
+    $delete_confirm = $is_rented_active ? 'return false' : 'return confirmDelete()';
+    $availability_text = '';
+    
+    // START OF FIX: Define unique popover ID
+    $popover_id = "edit-form-popover-" . $car_id; 
+    
+    if ($row['availability']==1) $availability_text = "Available";
+    elseif($row['availability']==0) $availability_text = "Unavailable";
+    else $availability_text = "Maintenance";
 
     $all_images = [];
     if (!empty($row['image'])) {
@@ -455,27 +515,27 @@ table td, table th { text-align:center; }
     <td><?= $row['daily_rate'] ?></td>
     <td><?= $row['owner'] ?></td>
     <td><?= $row['fuel_type'] ?></td>
-    <td><?= $row['transmission'] ?? 'N/A' ?></td> <td style="max-width: 250px; text-align: left;"><?= nl2br(htmlspecialchars($row['description'])) ?></td>
+    <td><?= $row['transmission'] ?? 'N/A' ?></td> 
+    <td style="max-width: 250px; text-align: left;"><?= nl2br(htmlspecialchars($row['description'])) ?></td>
     <td><?= $row['location_id'] ?></td>
     <td>
-        <?php
-            if($row['availability']==1) echo "Available";
-            elseif($row['availability']==0) echo "Unavailable";
-            else echo "Maintenance";
-        ?>
+        <?= $availability_text ?>
+        <?php if ($is_rented_active): ?>
+            <p style="color: red; font-size: 0.8em; font-weight: bold;">(Currently Rented)</p>
+        <?php endif; ?>
     </td>
     <td>
         <div class="action-buttons">
-            <button class="edit-btn"  popovertarget="edit-form-popover">Edit Info</button>
-            <form method="POST" onsubmit="return confirmDelete();">
+            <button class="edit-btn" popovertarget="<?= $popover_id ?>">Edit Info</button>
+            <form method="POST" onsubmit="<?= $delete_confirm ?>">
                 <input type="hidden" name="delete_id" value="<?= $row['car_id'] ?>">
-                <button class="delete-btn" type="submit">Delete</button>
+                <button class="delete-btn" type="submit" <?= $delete_disabled ?>>Delete</button>
             </form>
         </div>
         
-        <div id="edit-form-popover" popover="auto">
-        <form id="editForm<?= $row['car_id'] ?>" class="edit-form" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="edit_id" value="<?= $row['car_id'] ?>">
+        <div id="<?= $popover_id ?>" popover="auto">
+        <form id="editForm<?= $car_id ?>" class="edit-form" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="edit_id" value="<?= $car_id ?>">
 
             <label>Model</label>
             <input type="text" name="model" value="<?= $row['model'] ?>" required>
@@ -510,11 +570,15 @@ table td, table th { text-align:center; }
             <textarea name="description" rows="4" placeholder="Enter car description..."><?= htmlspecialchars($row['description']) ?></textarea>
 
             <label>Availability</label>
-            <select name="availability">
+            <select name="availability" <?= $is_rented_active ? 'disabled' : '' ?>>
                 <option value="1" <?= ($row['availability']==1)?'selected':'' ?>>Available</option>
-                <option value="0" <?= ($row['availability']==0)?'selected':'' ?>>Unavailable</option>
+                <option value="0" <?= ($row['availability']==0 || $is_rented_active)?'selected':'' ?>>Unavailable</option>
                 <option value="2" <?= ($row['availability']==2)?'selected':'' ?>>Maintenance</option>
             </select><br>
+            <?php if ($is_rented_active): ?>
+                <input type="hidden" name="availability" value="0"> 
+                <p style="color: red; font-weight: bold; font-size: 0.9em;">Status locked: Car is RENTED.</p>
+            <?php endif; ?>
 
             <label>Replace Main Image:</label>
             <input type="file" name="image"><br>
@@ -522,10 +586,10 @@ table td, table th { text-align:center; }
             <label>Add More Images:</label>
             <input type="file" name="additional_images[]" multiple><br>
 
-            <?php if (isset($car_images[$row['car_id']]) && count($car_images[$row['car_id']]) > 0): ?>
+            <?php if (isset($car_images[$car_id]) && count($car_images[$car_id]) > 0): ?>
                 <label>Existing Additional Images:</label>
                 <div class="additional-images-container">
-                    <?php foreach ($car_images[$row['car_id']] as $img): ?>
+                    <?php foreach ($car_images[$car_id] as $img): ?>
                         <div class="additional-image-item">
                             <img src='uploads/cars/<?= $img['image_path'] ?>' class='preview'>
                             <button type="button" class="delete-img-btn" title="Delete Image" onclick="confirmAndDeleteImage(<?= $img['image_id'] ?>)">x</button>
@@ -599,22 +663,10 @@ function navigateGallery(direction) {
 }
 
 function show() {
-    document.querySelector('.form').classList.toggle('show');
-}
-
-function toggleEditForm(id) {
-    const form = document.getElementById('editForm' + id);
-    const buttons = form.previousElementSibling; 
-    if(form.style.display === 'block') {
-        form.style.display = 'none';
-        buttons.style.display = 'flex'; 
-    } else {
-        document.querySelectorAll('.edit-form').forEach(f => {
-            f.style.display = 'none';
-            f.previousElementSibling.style.display = 'flex';
-        });
-        form.style.display = 'block';
-        buttons.style.display = 'none';
+    // This function is for the Add form popover, no change needed
+    const addPopover = document.getElementById('add-vehicle');
+    if (addPopover) {
+        addPopover.togglePopover();
     }
 }
 

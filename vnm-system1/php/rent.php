@@ -3,7 +3,6 @@
 session_start();
 include 'db.php'; 
 
-// Get user_id from session
 if (!isset($_SESSION['user'])) {
     header("Location: login.php");
     exit;
@@ -22,6 +21,15 @@ $car_id = $_POST['car_id'] ?? null;
 $license_photo_path = null;
 $upload_dir = '../uploads/licenses/'; 
 
+// Ensure upload directory exists
+if (!is_dir($upload_dir)) {
+    if (!mkdir($upload_dir, 0777, true)) {
+        error_log("Failed to create upload directory: " . $upload_dir);
+        header("Location: rent_form.php?car_id=$car_id&error=server_config_error");
+        exit;
+    }
+}
+
 if (isset($_FILES['driver_license_photo']) && $_FILES['driver_license_photo']['error'] === UPLOAD_ERR_OK) {
     $file_tmp = $_FILES['driver_license_photo']['tmp_name'];
     $file_name = basename($_FILES['driver_license_photo']['name']);
@@ -36,18 +44,10 @@ if (isset($_FILES['driver_license_photo']) && $_FILES['driver_license_photo']['e
         exit;
     }
     
-    if (!is_dir($upload_dir)) {
-        if (!mkdir($upload_dir, 0777, true)) {
-            error_log("Failed to create upload directory: " . $upload_dir);
-            header("Location: rent_form.php?car_id=$car_id&error=server_config_error");
-            exit;
-        }
-    }
-
     if (move_uploaded_file($file_tmp, $target_file)) {
         $license_photo_path = 'uploads/licenses/' . $unique_name; 
     } else {
-        error_log("File upload move failed for request from user $user_id. Target: $target_file");
+        error_log("License upload failed for user $user_id.");
         header("Location: rent_form.php?car_id=$car_id&error=file_upload_failed");
         exit;
     }
@@ -69,31 +69,67 @@ if (!$car_id || !$duration || !$total_cost || !strtotime($pickup_date) || !strto
     exit;
 }
 
+// ====================================================================
+// NEW FEATURE IMPLEMENTATION: AUTO-CANCEL CONFLICTING REQUESTS
+// This logic cancels any existing active but unapproved requests
+// for the same car and same rental date.
+// ====================================================================
+
+// Statuses that are active/not approved yet
+$statuses_to_cancel = ['Pending', 'Proof Uploaded']; 
+$status_list = "'" . implode("','", $statuses_to_cancel) . "'";
+
+$cancel_sql = "
+    UPDATE rental_requests 
+    SET request_status = 'Cancelled', 
+        admin_notes = CONCAT(COALESCE(admin_notes, ''), '\n[AUTO CANCELLED] Conflict with new request submitted by User ID $user_id on ', NOW())
+    WHERE car_id = ? 
+    AND rental_date = ? 
+    AND request_status IN ({$status_list})";
+
+$stmt_cancel = $conn->prepare($cancel_sql);
+
+if ($stmt_cancel === false) {
+    error_log("Database Prepare Error for Auto Cancel: " . $conn->error);
+    // Continue with insertion, but log the error
+} else {
+    $stmt_cancel->bind_param("is", $car_id, $pickup_date);
+    $stmt_cancel->execute();
+    $stmt_cancel->close();
+}
+// ====================================================================
 
 
-$stmt = $conn->prepare("INSERT INTO rental_requests (user_id, car_id, driver_license_photo_path, rental_date, rental_time, rental_duration_days, total_cost, request_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+// Insert the new rental request (which will be 'Pending')
+$sql = "INSERT INTO rental_requests (user_id, car_id, driver_license_photo, rental_date, rental_time, rental_duration_days, total_cost, request_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+$stmt = $conn->prepare($sql);
+
+if ($stmt === false) {
+    error_log("Database Prepare Error for Insertion: " . $conn->error . " SQL: " . $sql);
+    header("Location: rent_form.php?car_id=" . $car_id . "&error=db_prepare_failed");
+    exit;
+}
     
 $stmt->bind_param("iisssids", 
     $user_id, 
     $car_id, 
     $license_photo_path,
-    $pickup_date, 
-    $pickup_time, 
-    $duration, 
-    $total_cost, 
-    $request_status 
+    $pickup_date,
+    $pickup_time,
+    $duration,
+    $total_cost,
+    $request_status
 );
 
 if ($stmt->execute()) {
-    header("Location: ../php/rentalsc.php?success=pending");
+    $stmt->close();
+    $conn->close();
+    header("Location: rentalsc.php?success=rental_submitted");
     exit;
 } else {
-
-    error_log("Database error on rental request: " . $stmt->error);
+    error_log("DB insertion error: " . $stmt->error);
+    $stmt->close();
+    $conn->close();
     header("Location: rent_form.php?car_id=" . $car_id . "&error=db_insert_failed");
     exit;
 }
-
-$stmt->close();
-$conn->close();
-?>
