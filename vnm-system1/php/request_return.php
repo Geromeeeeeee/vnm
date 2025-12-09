@@ -12,8 +12,11 @@ if(isset($_POST['return_button'])){
     rental_requests.total_cost,
     cars.car_id,
     cars.model,
-    cars.daily_rate
-    FROM rental_requests JOIN cars ON rental_requests.car_id = cars.car_id
+    cars.daily_rate,
+    users.user_id
+    FROM rental_requests 
+    JOIN cars ON rental_requests.car_id = cars.car_id
+    JOIN users ON rental_requests.user_id = users.user_id
     WHERE rental_requests.request_id = $return_id
     ";
 
@@ -26,6 +29,7 @@ if(isset($_POST['return_button'])){
         $car_id = $row['car_id'];
         $car_model = $row['model'];
         $daily_rate = $row['daily_rate'];
+        $user_id = $row['user_id'];
 
         $startDate = new DateTime($start_date);
         $endDate = new DateTime($return_date);
@@ -33,10 +37,17 @@ if(isset($_POST['return_button'])){
         $interval = $startDate->diff($endDate);
         $days = $interval->days;
 
-        $total_cost = $days * $daily_rate;
+        if ($days < 1) $days = 1;
 
-        echo "Days rented: $days <br>";
-        echo "Total cost: ₱" . number_format($total_cost, 2);
+        $total_deducted_cost = $days * $daily_rate;
+
+        $return_request = "INSERT INTO rental_return_requests (request_id, user_id, requested_at, total_deducted_cost) VALUES ($id_request, $user_id, '$return_date', $total_deducted_cost)"; 
+
+        if(!mysqli_query($conn, $return_request)){
+            echo "Error";
+        } else{
+            echo "Request waiting approval";
+        }
     }
 }
 ?>

@@ -31,6 +31,16 @@ $query = "
 
 $details = mysqli_query($conn, $query); 
 $system_base_path = '/vnm-system1/'; 
+
+$display_return_req = "SELECT 
+    users.user_id,
+    users.fullname,
+    rental_return_requests.requested_at,
+    rental_return_requests.total_deducted_cost
+    FROM rental_return_requests
+    JOIN users ON rental_return_requests.user_id = users.user_id
+    WHERE rental_return_requests.status = 'pending'";
+    $query_result = mysqli_query($conn, $display_return_req);
 ?>
 
 <!DOCTYPE html>
@@ -168,6 +178,38 @@ $system_base_path = '/vnm-system1/';
 
         <div class="return-requests container">
             <h2>Return Requests</h2>
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Requested at</th>
+                    <th>Total Cost</th>
+                    <th>Status</th>
+                </tr>
+            </table>
+            <?php
+                if(mysqli_num_rows($query_result)>0){
+                    while($row = mysqli_fetch_assoc($query_result)){
+                        echo"
+                            <tr>
+                                <td>{$row['fullname']}</td>
+                                <td>{$row['requested_at']}</td>
+                                <td>{$row['total_deducted_cost']}</td>
+                                <td>
+                                <form action=''>
+                                    <button>Approve</button>
+                                </form>
+                                </td>
+                            </tr>
+                        ";
+                    }
+                } else{
+                    echo "
+                        <tr>
+                            <td colspan='4'>No Rental Return Requests</td>
+                        </tr>
+                    ";
+                }
+            ?>
         </div>
     </main>
 </body>
