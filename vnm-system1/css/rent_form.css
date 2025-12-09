@@ -81,7 +81,7 @@ nav button:nth-child(7){
     }
     form input{
         margin-bottom: var(--space-s);
-        padding: 0.5vh;
+        padding: 1vh;
         color: #111;
         transition: 0.25s ease-in-out;
         background-color: rgb(200, 200, 200);

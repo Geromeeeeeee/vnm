@@ -217,8 +217,8 @@ $history_details = $stmt_history->get_result();
         <a href="../php/login-dashboard.php">Home</a>
         <a href="#cars">Cars</a>
         <a href="#aboutUs">About</a>
-        <a href="../php/rentalsc.php">Rentals</a>
-        <a href="../php/customer_lifecycle.php">Car Status</a>
+        <a href="../php/rentalsc.php">Rental Requests</a>
+        <a href="../php/customer_lifecycle.php">Rental History</a>
         <button popovertarget="logout">Logout</button>
     </nav>
     <main>
@@ -287,7 +287,13 @@ $history_details = $stmt_history->get_result();
                         <?php elseif ($status_text === 'Picked Up'): ?>
                             <p style="color: green; font-weight: bold; margin: 0;">ACTIVE RENTAL</p>
                         <?php endif; ?>
-                        
+
+                        <form action="request_return.php" method="post">
+                            <input type="hidden" name="return_id" value="<?php echo $request_id?>">
+                            <input type="hidden" name="return_date" value="<?php echo date('Y-m-d'); ?>">
+                            <input type="hidden" name="start_date" value="<?php echo $row['pickup_date_actual']?>">
+                            <button type="submit" name="return_button">Return</button>
+                        </form>
                     </div>
                 </div>
                 <?php endwhile; ?>

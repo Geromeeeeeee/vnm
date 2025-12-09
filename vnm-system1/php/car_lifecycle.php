@@ -165,6 +165,10 @@ $system_base_path = '/vnm-system1/';
                 ?>
             </table>
         </div>
+
+        <div class="return-requests container">
+            <h2>Return Requests</h2>
+        </div>
     </main>
 </body>
 </html>
