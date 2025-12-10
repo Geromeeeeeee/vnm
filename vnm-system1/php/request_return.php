@@ -43,10 +43,15 @@ if(isset($_POST['return_button'])){
 
         $return_request = "INSERT INTO rental_return_requests (request_id, user_id, requested_at, total_deducted_cost) VALUES ($id_request, $user_id, '$return_date', $total_deducted_cost)"; 
 
-        if(!mysqli_query($conn, $return_request)){
-            echo "Error";
-        } else{
-            echo "Request waiting approval";
+          if(mysqli_query($conn, $return_request)){
+            $update_status = "UPDATE rental_requests 
+                SET request_status = 'Early_Return_Pending'
+                WHERE request_id = $id_request";
+
+                mysqli_query($conn, $update_status);
+
+            header("Location: customer_lifecycle.php");
+            exit();
         }
     }
 }

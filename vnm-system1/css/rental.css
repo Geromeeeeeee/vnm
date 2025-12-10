@@ -40,7 +40,7 @@
         width: 95%;
         min-height: 20vh;
         height:fit-content;
-        padding: var(--padding-s);
+        padding: 5vh;
         border-radius: var(--radius-m);
         box-shadow: 0px 0px 15px 0px rgba(255,255,255,0.5);
         -webkit-box-shadow: 0px 0px 15px 0px rgba(255,255,255,0.5);
@@ -48,7 +48,11 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: var(--padding-s);
+    }
+    .rental-detail .detail{
+        display: flex;
+        flex-direction: column;
+        gap: 1vh;
     }
     form{
         display: flex;

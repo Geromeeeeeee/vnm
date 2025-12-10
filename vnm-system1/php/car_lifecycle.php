@@ -50,7 +50,7 @@ $display_return_req = "SELECT
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Car Lifecycle</title>
     <link rel="stylesheet" href="../css/common.css ?v=1.2">
-    <link rel="stylesheet" href="../css/rentals.css ?v=1.05"> 
+    <link rel="stylesheet" href="../css/rentals.css ?v=1.06"> 
     <style>
         main { padding: 20px; max-width: 1200px; margin: 0 auto; }
         .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px; }
@@ -185,7 +185,6 @@ $display_return_req = "SELECT
                     <th>Total Cost</th>
                     <th>Status</th>
                 </tr>
-            </table>
             <?php
                 if(mysqli_num_rows($query_result)>0){
                     while($row = mysqli_fetch_assoc($query_result)){
@@ -205,11 +204,12 @@ $display_return_req = "SELECT
                 } else{
                     echo "
                         <tr>
-                            <td colspan='4'>No Rental Return Requests</td>
+                            <td colspan='4' style='text-align: center;'>No rental return requests</td>
                         </tr>
                     ";
                 }
             ?>
+            </table>
         </div>
     </main>
 </body>

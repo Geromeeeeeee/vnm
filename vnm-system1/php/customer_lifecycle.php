@@ -103,7 +103,7 @@ $current_sql = "
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
     LEFT JOIN rental_pickup_details pd ON rr.request_id = pd.request_id
-    WHERE rr.request_status IN ('Pending', 'Approved', 'Picked Up')
+    WHERE rr.request_status IN ('Pending', 'Approved', 'Picked Up', 'Early_Return_Pending')
         AND rr.user_id = ?
     ORDER BY FIELD(rr.request_status, 'Picked Up', 'Approved', 'Pending') ASC, rr.rental_date ASC";
 
@@ -141,7 +141,7 @@ $history_details = $stmt_history->get_result();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/rent_form.css">
-    <link rel="stylesheet" href="../css/rental.css?v=1.41"> 
+    <link rel="stylesheet" href="../css/rental.css?v=1.5"> 
     <title>My Rental Lifecycle</title>
     <style>
         /* CSS from rentalsc.php for consistent popover styling */
@@ -204,7 +204,6 @@ $history_details = $stmt_history->get_result();
             color: #ddd;
             border-radius: 4px;
         }
-        
         .action-status p {
             font-weight: bold;
             color: #333; 
@@ -284,16 +283,21 @@ $history_details = $stmt_history->get_result();
                                 <input type="hidden" name="action" value="cancel">
                                 <button type="submit" style="background-color: grey; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-top: 10px;">Cancel Request</button>
                             </form>
+                        <?php elseif ($status_text === 'Early_Return_Pending'): ?>
+                            <p style="color: purple; font-weight: bold; margin: 0;">Awaiting Return Approval</p>
                         <?php elseif ($status_text === 'Picked Up'): ?>
                             <p style="color: green; font-weight: bold; margin: 0;">ACTIVE RENTAL</p>
                         <?php endif; ?>
 
-                        <form action="request_return.php" method="post">
-                            <input type="hidden" name="return_id" value="<?php echo $request_id?>">
-                            <input type="hidden" name="return_date" value="<?php echo date('Y-m-d'); ?>">
-                            <input type="hidden" name="start_date" value="<?php echo $row['pickup_date_actual']?>">
-                            <button type="submit" name="return_button">Return</button>
-                        </form>
+                        <?php if ($status_text === 'Picked Up'): ?>
+                            <form action="request_return.php" method="post">
+                                <input type="hidden" name="return_id" value="<?php echo $request_id?>">
+                                <input type="hidden" name="return_date" value="<?php echo date('Y-m-d'); ?>">
+                                <input type="hidden" name="start_date" value="<?php echo $row['pickup_date_actual']?>">
+                                <button type="submit" name="return_button">Return</button>
+                            </form>
+                        <?php endif; ?>
+
                     </div>
                 </div>
                 <?php endwhile; ?>

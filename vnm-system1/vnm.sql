@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 09, 2025 at 05:32 PM
+-- Generation Time: Dec 10, 2025 at 10:03 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -49,11 +49,11 @@ CREATE TABLE `cars` (
 --
 
 INSERT INTO `cars` (`car_id`, `model`, `plate_no`, `car_brand`, `year`, `daily_rate`, `owner`, `fuel_type`, `transmission`, `is_available`, `location_id`, `image`, `availability`, `description`) VALUES
-(8, 'Toyota All-new Innova', 'ABC 123', 'Toyota', '2025', 1500.00, 'John Doe', 'Diesel', 'Automatic', 1, 319337317, '1764358454_B1.jpg', 0, 'The Toyota All-new Innova 2025 is a popular and spacious seven-to-eight-seater MPV known for blending a comfortable cabin and reliable performance with a durable chassis, making it the ideal versatile vehicle for families and commercial use.'),
+(8, 'Toyota All-new Innova', 'ABC 123', 'Toyota', '2025', 1500.00, 'John Doe', 'Diesel', 'Automatic', 1, 319337317, '1764358454_B1.jpg', 1, 'The Toyota All-new Innova 2025 is a popular and spacious seven-to-eight-seater MPV known for blending a comfortable cabin and reliable performance with a durable chassis, making it the ideal versatile vehicle for families and commercial use.'),
 (9, 'Mitsubishi Montero Sport', 'DEF 456', 'Mitsubishi ', '2025', 2000.00, 'Jane Smith', 'Diesel', 'Manual', 1, 219323317, '1764352916_A1.jpg', 1, 'The Mitsubishi Montero Sport is a versatile seven-seater SUV balancing a comfortable cabin and modern features with a durable, body-on-frame chassis and advanced Super Select 4WD-II system for reliable off-road capability.'),
-(14, 'Ford Ranger Raptor', 'GHI 789', 'Ford', '2024', 2500.00, 'Alex Johnson', 'Diesel', 'Automatic', 0, 419347317, '1764357777_hennessey-velociraptor-500-ford-ranger-raptor.jpg', 0, 'The 2024 Ford Raptor is the pinnacle of factory off-road performance, featuring a potent twin-turbo V6 engine and advanced, dynamically adjustable FOX Live Valve suspension engineered for high-speed dominance across severe desert terrain.'),
+(14, 'Ford Ranger Raptor', 'GHI 789', 'Ford', '2024', 2500.00, 'Alex Johnson', 'Diesel', 'Automatic', 0, 419347317, '1764357777_hennessey-velociraptor-500-ford-ranger-raptor.jpg', 1, 'The 2024 Ford Raptor is the pinnacle of factory off-road performance, featuring a potent twin-turbo V6 engine and advanced, dynamically adjustable FOX Live Valve suspension engineered for high-speed dominance across severe desert terrain.'),
 (15, 'Mitsubishi L300', 'JKL 001', 'Mitsubishi', '2025', 1200.00, 'Robert Brown', 'Diesel', 'Manual', 0, 519357317, '1764358082_mitsubishi-l300-front-side-view-970171.avif', 1, 'The 2025 Mitsubishi L300 is a highly efficient commercial vehicle, blending a fuel-sipping Euro 4 diesel engine with a rugged, high-payload chassis that minimizes maintenance costs and maximizes operational time.'),
-(19, 'Ford Everest', 'XYZ 101', 'Ford', '2024', 2200.00, 'Sarah Connor', 'Diesel', 'Automatic', 1, 600000000, '1764962956_2024-04-2024-ford-everest-sport-4x4-v6-hero-16x9-1.webp', 1, 'The 2024 Ford Everest is a rugged and sophisticated seven-seater SUV, known for its comfortable interior, advanced technology, and excellent off-road capability.');
+(19, 'Ford Everest', 'XYZ 101', 'Ford', '2024', 2200.00, 'Sarah Connor', 'Diesel', 'Automatic', 1, 600000000, '1764962956_2024-04-2024-ford-everest-sport-4x4-v6-hero-16x9-1.webp', 0, 'The 2024 Ford Everest is a rugged and sophisticated seven-seater SUV, known for its comfortable interior, advanced technology, and excellent off-road capability.');
 
 -- --------------------------------------------------------
 
@@ -113,10 +113,7 @@ CREATE TABLE `rental_pickup_details` (
 --
 
 INSERT INTO `rental_pickup_details` (`pickup_id`, `request_id`, `pickup_admin_id`, `pickup_date_actual`, `car_condition_pickup`, `odometer_pickup`) VALUES
-(16, 70, 1, '2025-12-06 17:25:17', 'nine', 10000),
-(17, 72, 1, '2025-12-06 17:45:36', 'hjk', 500),
-(23, 83, 1, '2025-12-09 18:20:14', 'k\'', 456),
-(24, 84, 1, '2025-12-10 00:03:16', 'k', 1500);
+(27, 87, 1, '2025-12-10 16:40:17', ';;', 15);
 
 -- --------------------------------------------------------
 
@@ -140,7 +137,7 @@ CREATE TABLE `rental_requests` (
   `payment_method` varchar(50) DEFAULT NULL,
   `payment_reference_no` varchar(100) DEFAULT NULL,
   `admin_notes` text DEFAULT NULL,
-  `request_status` enum('Pending','Approved','Rejected','Cancelled','Picked Up','Returned') NOT NULL DEFAULT 'Pending',
+  `request_status` enum('Pending','Approved','Rejected','Cancelled','Picked Up','Returned','Early_Return_Pending') NOT NULL DEFAULT 'Pending',
   `request_timestamp` datetime NOT NULL DEFAULT current_timestamp(),
   `payment_status` enum('Unpaid','Paid','Proof Uploaded') NOT NULL DEFAULT 'Unpaid',
   `rental_lifecycle_status` enum('Scheduled','PickedUp','OnRide','Returned') NOT NULL DEFAULT 'Scheduled'
@@ -151,10 +148,7 @@ CREATE TABLE `rental_requests` (
 --
 
 INSERT INTO `rental_requests` (`request_id`, `user_id`, `car_id`, `driver_license_photo`, `rental_date`, `rental_time`, `rental_duration_days`, `total_cost`, `odometer_pickup`, `condition_pickup`, `actual_pickup_datetime`, `payment_proof_path`, `payment_method`, `payment_reference_no`, `admin_notes`, `request_status`, `request_timestamp`, `payment_status`, `rental_lifecycle_status`) VALUES
-(70, 15, 19, 'uploads/licenses/license_6933f44795d228.72217544.jpg', '2025-12-25', '20:15:00', 1, 2200.00, NULL, NULL, NULL, 'uploads/payments/proof_70_6933f496b3e48.jpg', 'gcash', '123456789', '', '', '2025-12-06 17:15:51', 'Paid', 'Scheduled'),
-(72, 15, 15, 'uploads/licenses/license_6933f917c42986.49132825.jpg', '2025-12-30', '19:40:00', 1, 1200.00, NULL, NULL, NULL, 'uploads/payments/proof_72_6933fb1c45f6e.jpg', 'gcash', '123456', '', '', '2025-12-06 17:36:23', 'Proof Uploaded', 'Scheduled'),
-(83, 17, 15, 'uploads/licenses/license_6937f7b8d4e244.50104339.jpg', '2025-12-10', '06:19:00', 5, 6000.00, NULL, NULL, NULL, 'uploads/payments/proof_83_6937f7d429fd1.pdf', 'gcash', '12345', NULL, 'Returned', '2025-12-09 18:19:36', 'Proof Uploaded', 'Scheduled'),
-(84, 17, 9, 'uploads/licenses/license_69384809958040.68252481.jpg', '2025-12-10', '00:02:00', 3, 6000.00, NULL, NULL, NULL, 'uploads/payments/proof_84_693848319a978.pdf', 'gcash', '123456', NULL, 'Returned', '2025-12-10 00:02:17', 'Proof Uploaded', 'Scheduled');
+(87, 15, 19, 'uploads/licenses/license_693931d2764352.34281930.jpg', '2025-12-10', '16:39:00', 3, 6600.00, NULL, NULL, NULL, 'uploads/payments/proof_87_693931e5b5808.jpg', 'gcash', '123456', NULL, 'Early_Return_Pending', '2025-12-10 16:39:46', 'Proof Uploaded', 'Scheduled');
 
 -- --------------------------------------------------------
 
@@ -171,14 +165,6 @@ CREATE TABLE `rental_return_details` (
   `odometer_return` int(11) DEFAULT NULL,
   `damage_fee` decimal(10,2) NOT NULL DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `rental_return_details`
---
-
-INSERT INTO `rental_return_details` (`return_id`, `request_id`, `return_admin_id`, `return_date_actual`, `car_condition_return`, `odometer_return`, `damage_fee`) VALUES
-(17, 84, 1, '2025-12-09 17:04:00', ';', 1540, 0.00),
-(18, 83, 1, '2025-12-09 17:04:00', 'll', 4578, 0.00);
 
 -- --------------------------------------------------------
 
@@ -201,7 +187,7 @@ CREATE TABLE `rental_return_requests` (
 --
 
 INSERT INTO `rental_return_requests` (`id`, `request_id`, `user_id`, `requested_at`, `status`, `note`, `total_deducted_cost`) VALUES
-(1, 68, 15, '2025-12-06 16:46:51', 'Approved', NULL, NULL);
+(7, 87, 15, '2025-12-10 00:00:00', 'Pending', NULL, 2200);
 
 -- --------------------------------------------------------
 
@@ -326,13 +312,13 @@ ALTER TABLE `car_images`
 -- AUTO_INCREMENT for table `rental_pickup_details`
 --
 ALTER TABLE `rental_pickup_details`
-  MODIFY `pickup_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `pickup_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `rental_requests`
 --
 ALTER TABLE `rental_requests`
-  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=85;
+  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=88;
 
 --
 -- AUTO_INCREMENT for table `rental_return_details`
@@ -344,7 +330,7 @@ ALTER TABLE `rental_return_details`
 -- AUTO_INCREMENT for table `rental_return_requests`
 --
 ALTER TABLE `rental_return_requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `users`
