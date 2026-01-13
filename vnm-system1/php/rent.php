@@ -56,8 +56,6 @@ if (isset($_FILES['driver_license_photo']) && $_FILES['driver_license_photo']['e
     exit;
 }
 
-
-
 $pickup_date = $_POST['pickup'] ?? null;
 $pickup_time = $_POST['time'] ?? null;
 $duration = filter_var($_POST['duration'], FILTER_VALIDATE_INT);
@@ -68,6 +66,30 @@ if (!$car_id || !$duration || !$total_cost || !strtotime($pickup_date) || !strto
     header("Location: rent_form.php?car_id=" . $car_id . "&error=invalid_input");
     exit;
 }
+
+// ====================================================================
+// NEW UPDATE: OVERLAP VALIDATION
+// Prevents booking if dates are already "Approved" or "Picked Up"
+// ====================================================================
+$requested_end_date = date('Y-m-d', strtotime($pickup_date . " + $duration days"));
+
+$overlap_sql = "SELECT request_id FROM rental_requests 
+                WHERE car_id = ? 
+                AND request_status IN ('Approved', 'Picked Up') 
+                AND NOT (rental_date >= ? OR DATE_ADD(rental_date, INTERVAL rental_duration_days DAY) <= ?)";
+
+$stmt_ov = $conn->prepare($overlap_sql);
+$stmt_ov->bind_param("iss", $car_id, $requested_end_date, $pickup_date);
+$stmt_ov->execute();
+$overlap_result = $stmt_ov->get_result();
+
+if ($overlap_result->num_rows > 0) {
+    $stmt_ov->close();
+    header("Location: rent_form.php?car_id=$car_id&error=" . urlencode("The car is already booked for these dates."));
+    exit;
+}
+$stmt_ov->close();
+// ====================================================================
 
 // ====================================================================
 // NEW FEATURE IMPLEMENTATION: AUTO-CANCEL CONFLICTING REQUESTS
@@ -133,3 +155,4 @@ if ($stmt->execute()) {
     header("Location: rent_form.php?car_id=" . $car_id . "&error=db_insert_failed");
     exit;
 }
+?>

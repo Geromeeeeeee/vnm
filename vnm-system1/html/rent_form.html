@@ -3,19 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="../css/main.css?v=1.01">
     <link rel="stylesheet" href="../css/rent_form.css?v=1.04">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <title>Rent</title>
 </head>
 <body>
-    <nav>
-        <h3>VNM Car Rental</h3>
+     <nav>
+          <h3>VNM Car Rental</h3>
         <a href="../php/login-dashboard.php">Home</a>
         <a href="#cars">Cars</a>
         <a href="#aboutUs">About</a>
-        <a href="">Contact</a>
-        <a href="../php/rentalsc.php">Rentals</a>
-        </nav>
+        <a href="../php/rentalsc.php">Rental Requests</a>
+        <a href="../php/customer_lifecycle.php">Rental History</a>
+        <a href="../php/edit_account.php">Account</a>
+        <button popovertarget="logout">Logout</button>
+    </nav>
     <main>
         <div id="rent-details">
             <div class="car-img">
@@ -33,7 +37,7 @@
                 <input type="text" name="car_model" readonly required>                
 
                 <label for="pickup">Pickup Date: </label>
-                <input type="date" name="pickup" id="pickup" min="<?= date('Y-m-d'); ?>" required>
+                <input type="text" name="pickup" id="pickup" placeholder="Select Date.." required>
                 
                 <label for="time">Time: </label>
                 <input type="time" name="time" id="time" required>
@@ -51,7 +55,17 @@
             </form>
         </div>
     </main>
+
+    <script>
+        // Initialize Calendar with greyed-out dates
+        flatpickr("#pickup", {
+            dateFormat: "Y-m-d",
+            minDate: "today",
+            disable: DISABLED_DATES,
+            locale: { firstDayOfWeek: 1 }
+        });
+    </script>
     <script src="../js/rent_form.js"></script>
-        <script src="../js/dashboard.js"></script>
+    <script src="../js/dashboard.js"></script>
 </body>
 </html>

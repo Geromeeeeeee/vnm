@@ -37,8 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
             }
             $stmt->close();
 
-            // 3. Update car availability status to 0 (Unavailable)
-            $update_car_sql = "UPDATE cars SET availability = 0 WHERE car_id = ?";
+            // 3. REMOVED: Update car availability status (Scheduling is now date-based)
+            /* $update_car_sql = "UPDATE cars SET availability = 0 WHERE car_id = ?";
             $stmt = $conn->prepare($update_car_sql);
             if ($stmt === false) {
                  throw new Exception("SQL Prepare Failed (Car Update): " . $conn->error);
@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
                 throw new Exception("Failed to update car availability.");
             }
             $stmt->close();
+            */
             
             $conn->commit();
             $success = true;

@@ -16,7 +16,7 @@
     --radius-l:25px;
 }
 @media (min-width:300px){
-    nav button:nth-child(7){
+    nav button:nth-child(8){
         margin-left: auto;
         width: fit-content;
         height: fit-content;
@@ -34,7 +34,7 @@
     }
 }
 @media (min-width:600px) and (orientation: landscape){
-    nav button:nth-child(7){
+    nav button:nth-child(8){
         font-size:var(--font-m);
     }
     main section:nth-child(1), main section:nth-child(4){

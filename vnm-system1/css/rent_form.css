@@ -20,7 +20,7 @@
     box-sizing: border-box;
     font-family: var(--font-fam);
 }
-nav button:nth-child(7){
+nav button:nth-child(8){
         margin-left: auto;
         width: fit-content;
         height: fit-content;
@@ -30,7 +30,7 @@ nav button:nth-child(7){
         transition: 0.125s ease-in-out;
     }
 @media (min-width:600px){
-    nav button:nth-child(7){
+    nav button:nth-child(8){
         font-size:var(--font-m);
     }
     main{

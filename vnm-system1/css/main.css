@@ -50,7 +50,7 @@ main{
     nav a{
         display: none;
     }
-    nav button:nth-child(6){
+    nav button:nth-child(8){
         margin-left: auto;
         width: fit-content;
         height: fit-content;
@@ -75,7 +75,7 @@ main{
     nav h3{
         margin-right: var(--space-l);
     }
-    nav button:nth-child(6){
+    nav button:nth-child(8){
         font-size:var(--font-m);
     }
     nav a{

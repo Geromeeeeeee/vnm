@@ -165,7 +165,7 @@ $history_details = $stmt_history->get_result();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/rent_form.css">
+    <link rel="stylesheet" href="../css/rent_form.css?v=1.01">
     <link rel="stylesheet" href="../css/rental.css?v=1.45"> 
     <title>My Rentals</title>
     <style>
@@ -236,15 +236,16 @@ $history_details = $stmt_history->get_result();
     </style>
 </head>
 <body>
-    <nav>
-        <h3>VNM Car Rental</h3>
-        <a href="../php/login-dashboard.php">Home</a>
-        <a href="#cars">Cars</a>
-        <a href="#aboutUs">About</a>
-        <a href="../php/rentalsc.php">Rental Requests</a>
-        <a href="../php/customer_lifecycle.php">Rental History</a>
-        <button popovertarget="logout">Logout</button>
-    </nav>
+     <nav>
+    <h3>VNM Car Rental</h3>
+    <a href="../php/login-dashboard.php">Home</a>
+    <a href="../php/login-dashboard.php#cars">Cars</a> 
+    <a href="../php/login-dashboard.php#aboutUs">About</a>
+    <a href="../php/rentalsc.php">Rental Requests</a>
+    <a href="../php/customer_lifecycle.php">Rental History</a>
+    <a href="../php/edit_account.php">Account</a>
+    <button popovertarget="logout">Logout</button>
+</nav>
     <main>
         <section id="upcoming">
             <h3>Pending Rental Requests (Awaiting Approval)</h3>

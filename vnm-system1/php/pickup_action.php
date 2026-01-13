@@ -1,97 +1,88 @@
 <?php
+// pickup_action.php (Admin side: Handles recording pickup and setting status to 'Picked Up')
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-session_start(); 
+session_start();
 include 'db.php'; 
 
-$admin_id = $_SESSION['admin_id'] ?? 1; 
-
-// 1. Input Validation and Sanitization
-if (!isset($_POST['request_id'], $_POST['car_id'], $_POST['odometer'], $_POST['condition'], $_POST['action']) || $_POST['action'] !== 'confirm_pickup') {
-    header("Location: rentals.php?error=" . urlencode("Missing or invalid input data."));
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['action']) || $_POST['action'] !== 'confirm_pickup') {
+    header('Location: car_lifecycle.php');
     exit;
 }
 
 $request_id = filter_input(INPUT_POST, 'request_id', FILTER_VALIDATE_INT);
 $car_id = filter_input(INPUT_POST, 'car_id', FILTER_VALIDATE_INT);
 $odometer = filter_input(INPUT_POST, 'odometer', FILTER_VALIDATE_INT);
-$condition = trim($_POST['condition']);
+$condition = filter_input(INPUT_POST, 'condition', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+$pickup_date_actual = date('Y-m-d'); 
 
-if (!$request_id || !$car_id || $odometer === false || $odometer < 0 || empty($condition)) {
-    header("Location: car_pickup.php?request_id={$request_id}&error=" . urlencode("Invalid data provided for odometer or condition notes."));
+if (!$request_id || !$car_id || $odometer === false || !$condition) {
+    header("Location: car_pickup.php?request_id={$request_id}&error=" . urlencode("Missing or invalid input data."));
     exit;
 }
 
-$conn->begin_transaction();
+mysqli_begin_transaction($conn);
 
 try {
-    // A. Insert pickup details into the dedicated rental_pickup_details table
-    $sql_pickup_insert = "
-        INSERT INTO rental_pickup_details (
-            request_id, 
-            pickup_admin_id, 
-            pickup_date_actual,
-            car_condition_pickup, 
-            odometer_pickup
-        ) VALUES (?, ?, NOW(), ?, ?)
+    // 1. Insert pickup details into rental_pickup_details
+    $insert_pickup_sql = "
+        INSERT INTO rental_pickup_details 
+        (request_id, pickup_date_actual, odometer_pickup, car_condition_pickup) 
+        VALUES (?, ?, ?, ?)
     ";
-    $stmt_insert = $conn->prepare($sql_pickup_insert);
-
+    $stmt_insert = $conn->prepare($insert_pickup_sql);
     if ($stmt_insert === false) {
-        throw new Exception("SQL Prepare Failed (Pickup Insert): " . $conn->error);
+        throw new Exception("SQL Prepare Failed (Insert Pickup): " . $conn->error);
     }
-    
-    $stmt_insert->bind_param("iisi", $request_id, $admin_id, $condition, $odometer);
-    
-    if (!$stmt_insert->execute() || $stmt_insert->affected_rows !== 1) {
-        throw new Exception("Failed to record pickup details. (Request may already be picked up).");
+    $stmt_insert->bind_param("isis", $request_id, $pickup_date_actual, $odometer, $condition); 
+
+    if (!$stmt_insert->execute()) {
+        throw new Exception("Error inserting pickup details: " . $stmt_insert->error);
     }
     $stmt_insert->close();
-    
-    // B. Update rental_requests status to 'Picked Up'
-    $sql_rental_update = "
+
+    // 2. CRITICAL STEP: Update rental_requests status to 'Picked Up'
+    $update_rental_sql = "
         UPDATE rental_requests 
-        SET request_status = 'Picked Up'
+        SET request_status = 'Picked Up' 
         WHERE request_id = ? AND request_status = 'Approved'
     ";
-    $stmt_rental = $conn->prepare($sql_rental_update);
+    $stmt_rental = $conn->prepare($update_rental_sql);
+    if ($stmt_rental === false) {
+        throw new Exception("SQL Prepare Failed (Rental Update): " . $conn->error);
+    }
     $stmt_rental->bind_param("i", $request_id);
-
-    if (!$stmt_rental->execute() || $stmt_rental->affected_rows !== 1) {
-        throw new Exception("Failed to update rental request status. (Request may not be in 'Approved' status).");
+    if (!$stmt_rental->execute()) {
+        throw new Exception("Error updating rental status: " . $stmt_rental->error);
+    }
+    if ($stmt_rental->affected_rows === 0) {
+        throw new Exception("Rental status was not 'Approved' for pickup. Status update aborted.");
     }
     $stmt_rental->close();
 
-    // C. FIX: Update car availability status to 0 (Unavailable/Rented)
-    $sql_car = "
+    // 3. REMOVED: Update car availability (Scheduling is now date-based)
+    /*
+    $update_car_sql = "
         UPDATE cars 
-        SET availability = 0 
-        WHERE car_id = ? AND availability = 1
+        SET is_available = 0 
+        WHERE car_id = ?
     ";
-    $stmt_car = $conn->prepare($sql_car);
-
-    if ($stmt_car === false) {
-        throw new Exception("SQL Prepare Failed (Car Update): " . $conn->error);
-    }
-    
+    $stmt_car = $conn->prepare($update_car_sql);
     $stmt_car->bind_param("i", $car_id);
-    
-    if (!$stmt_car->execute() && $stmt_car->affected_rows !== 0) { 
-        error_log("Warning: Car $car_id availability was not updated to 0 (may already be set).");
-    }
+    $stmt_car->execute();
     $stmt_car->close();
+    */
+
+    mysqli_commit($conn);
     
-    // 3. Commit Transaction and Redirect on Success
-    $conn->commit();
-    header("Location: car_pickup.php?request_id=$request_id&success=1"); 
+    $success_message = urlencode("Car ID {$car_id} picked up successfully. Rental is now active ('Picked Up').");
+    header("Location: car_lifecycle.php?success={$success_message}");
     exit;
 
 } catch (Exception $e) {
-
-    // 4. Rollback on Error and Redirect
-    $conn->rollback();
-    error_log("Car Pick Up Transaction Failed: " . $e->getMessage());
-    header("Location: car_pickup.php?request_id=$request_id&error=" . urlencode("Transaction failed: " . $e->getMessage()));
+    mysqli_rollback($conn);
+    error_log("Car Pickup failed: " . $e->getMessage());
+    header("Location: car_pickup.php?request_id={$request_id}&error=" . urlencode("Transaction failed: " . $e->getMessage()));
     exit;
 }
 ?>

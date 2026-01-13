@@ -79,13 +79,14 @@
     </script>
 </head>
 <body>
-    <nav>
+   <nav>
     <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
     <div class="navLink">
         <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
         <a href="/vnm-system1/php/cars/cars.php">Cars</a>
         <a href="/vnm-system1/php/rentals.php">Rentals</a>
         <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
+        <a href="/vnm-system1/php/manage_accounts.php" class="active">Accounts</a> 
         <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
     </div>
 </nav>

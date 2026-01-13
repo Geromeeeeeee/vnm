@@ -54,7 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
         
         if (move_uploaded_file($file_tmp, $target_file)) {
-            // Note: The path stored in DB should be relative to the application's root for easy access
             $proof_path = 'uploads/payments/' . $unique_name; 
         } else {
             error_log("Payment proof upload failed for request $request_id.");
@@ -84,7 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $stmt_update->bind_param("ssii", $proof_path, $payment_method, $request_id, $current_user_id);
 
     if ($stmt_update->execute()) {
-        // NOTE: Redirecting to rentalsc.php to maintain consistency with the original handler
         header("Location: rentalsc.php?success=payment_proof_uploaded"); 
         exit;
     } else {
@@ -94,35 +92,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// --- 1. Fetch CURRENT/UPCOMING/ACTIVE Rentals (Pending, Approved, Picked Up) ---
+// --- 1. Fetch CURRENT/UPCOMING/ACTIVE Rentals (MODIFIED SQL) ---
 $current_sql = "
     SELECT 
-        rr.request_id, rr.rental_date, rr.rental_time, rr.rental_duration_days, rr.total_cost, rr.request_status, rr.payment_status,
-        c.car_brand, c.model, c.plate_no,
-        pd.pickup_date_actual, pd.odometer_pickup, pd.car_condition_pickup
+        rr.request_id, rr.rental_date, rr.rental_time, rr.rental_duration_days, rr.total_cost, rr.request_status, rr.payment_status, rr.car_id, /* <<< ADDED rr.car_id */
+        c.car_brand, c.model, c.plate_no, c.daily_rate, /* <<< ADDED c.daily_rate */
+        pd.pickup_date_actual, pd.odometer_pickup, pd.car_condition_pickup,
+        -- Calculate the original expected return date based on actual pickup + duration
+        DATE_ADD(pd.pickup_date_actual, INTERVAL rr.rental_duration_days DAY) AS expected_return_date,
+        rrr.scheduled_return_date, rrr.scheduled_return_time,
+        rrr.total_deducted_cost 
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
     LEFT JOIN rental_pickup_details pd ON rr.request_id = pd.request_id
-    WHERE rr.request_status IN ('Pending', 'Approved', 'Picked Up', 'Early_Return_Pending')
+    LEFT JOIN rental_return_requests rrr ON rr.request_id = rrr.request_id 
+    WHERE rr.request_status IN ('Pending', 'Approved', 'Picked Up', 'Early Return Requested', 'Early_Return_Approved', 'Early_Return_Scheduled') 
         AND rr.user_id = ?
-    ORDER BY FIELD(rr.request_status, 'Picked Up', 'Approved', 'Pending') ASC, rr.rental_date ASC";
+    ORDER BY FIELD(rr.request_status, 'Picked Up', 'Early_Return_Scheduled', 'Early_Return_Approved', 'Early Return Requested', 'Approved', 'Pending') ASC, rr.rental_date ASC"; 
 
 $stmt_current = $conn->prepare($current_sql);
+
+// Crucial check: Fixes the 'bind_param on bool' error by displaying the underlying SQL issue.
+if ($stmt_current === false) { 
+    die("SQL Prepare Error on CURRENT Rentals: " . $conn->error . "<br>Please ensure you have run the database ALTER commands to add 'scheduled_return_date', 'scheduled_return_time', 'total_deducted_cost' to rental_return_requests and updated the ENUM in rental_requests.");
+} 
+
 $stmt_current->bind_param('i', $current_user_id);
 $stmt_current->execute();
 $current_details = $stmt_current->get_result();
 
-// --- 2. Fetch HISTORY/COMPLETED Rentals (Returned, Rejected, Cancelled) ---
+// --- 2. Fetch HISTORY/COMPLETED Rentals ---
 $history_sql = "
     SELECT 
         rr.request_id, rr.rental_date, rr.rental_time, rr.total_cost, rr.request_status, rr.payment_status,
         c.car_brand, c.model, c.plate_no,
         pd.odometer_pickup,
-        rd.odometer_return, rd.return_date_actual, rd.damage_fee
+        rd.odometer_return, rd.return_date_actual, rd.damage_fee,
+        rrr.total_deducted_cost 
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
     LEFT JOIN rental_pickup_details pd ON rr.request_id = pd.request_id
     LEFT JOIN rental_return_details rd ON rr.request_id = rd.request_id
+    LEFT JOIN rental_return_requests rrr ON rr.request_id = rrr.request_id 
     WHERE rr.request_status IN ('Returned', 'Rejected', 'Cancelled')
         AND rr.user_id = ?
     ORDER BY rr.rental_date DESC";
@@ -140,12 +151,16 @@ $history_details = $stmt_history->get_result();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
-    <link rel="stylesheet" href="../css/rent_form.css">
+    <link rel="stylesheet" href="../css/rent_form.css?v=1.01">
     <link rel="stylesheet" href="../css/rental.css?v=1.5"> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <title>My Rental Lifecycle</title>
     <style>
-        /* CSS from rentalsc.php for consistent popover styling */
-        #payment-popover {
+        /* CSS for forms/popovers (MODIFIED to ensure centering) */
+        #payment-popover, #schedule-popover, #extend-popover { 
+            /* popover="auto" handles the initial display/backdrop, but we enforce centering */
             background-color: black; 
             border: 1px solid #444; 
             padding: 20px;
@@ -154,9 +169,14 @@ $history_details = $stmt_history->get_result();
             max-width: 400px; 
             width: 90vw; 
             box-sizing: border-box; 
+            
+            /* Enforce middle positioning */
+            margin: auto; 
+            top: 0; bottom: 0; left: 0; right: 0;
+            position: fixed; 
         }
         
-        #payment-popover img {
+        #payment-popover img, #extend-popover img { 
             max-width: 250px; 
             height: 250px; 
             width: 100%; 
@@ -167,37 +187,81 @@ $history_details = $stmt_history->get_result();
             background-color: white; 
         }
         
-        #payment-popover h3 {
+        #payment-popover h3, #schedule-popover h3, #extend-popover h3 { 
             margin-top: 0;
             color: #ccc; 
             border-bottom: 2px solid #333;
             padding-bottom: 10px;
         }
-        #payment-popover p {
+        #payment-popover p, #schedule-popover p, #extend-popover p { 
             margin: 5px 0;
             color: #eee;
         }
         
-        #payment-popover select, #payment-proof-file {
-            border: 1px solid #aaa;
-            padding: 8px;
-            border-radius: 4px;
-            box-sizing: border-box; 
+        /* Ensure all inputs and selects across all popovers are styled consistently and vertically */
+        #payment-popover select, #payment-proof-file, 
+        #schedule-popover input[type="date"], #schedule-popover input[type="time"],
+        #extend-popover input, #extend-popover select, #extend-popover input[type="file"] { 
+            width: 100%; 
+            padding: 8px; 
+            margin-top: 5px; 
             background-color: #333; 
             color: white; 
+            border: 1px solid #aaa; 
+            border-radius: 4px;
+            box-sizing: border-box; 
+        }
+
+        /* --- START: Vertical Form Fixes for Extend Popover --- */
+        /* Ensure the form groups stack vertically */
+        #extend-popover .form-group {
+            display: block; 
+            margin-bottom: 15px; 
+        }
+
+        /* Ensure the label is a block element so the input starts on a new line */
+        #extend-popover .form-group label {
+            display: block;
+            margin-bottom: 5px; 
+            font-weight: bold; 
+        }
+        /* --- END: Vertical Form Fixes for Extend Popover --- */
+        
+        /* New CSS for centering the schedule date/time inputs (PRESERVED) */
+        #schedule-popover .schedule-form-content {
+            max-width: 250px; /* Limit the width of the inputs/labels */
+            width: 100%;
+            margin: 0 auto; /* Center the container horizontally */
+            text-align: left; /* Ensure labels start from the left of this container */
         }
         
-        #payment-popover button[type="submit"] {
-            background-color: #28a745; 
+        /* NEW: Base style for all VNM action buttons in the action-status block (GREYISH) */
+        .vnm-action-button { 
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none; 
+            background-color: #6c757d; /* Neutral Grey for Return/Extend buttons */
+        }
+
+        /* Submit buttons inside popovers (Slightly darker grey for contrast) */
+        #payment-popover button[type="submit"], 
+        #schedule-popover button[type="submit"], 
+        #extend-popover button[type="submit"] { 
+            background-color: #5a6268; /* Darker grey for submit actions */
             color: white;
             border: none;
             padding: 10px;
             border-radius: 5px;
             cursor: pointer;
             width: 100%;
-            margin-top: 10px;
+            margin-top: 20px;
             font-weight: bold;
         }
+        
         #qr-instructions {
             padding: 20px;
             background-color: #333; 
@@ -208,35 +272,64 @@ $history_details = $stmt_history->get_result();
             font-weight: bold;
             color: #333; 
         }
+        #extendRentalForm{
+            display:flex;
+            flex-direction:column;
+            height:75vh;
+            overflow:auto;
+            gap:1.5vh;
+        }
     </style>
 </head>
 <body>
      <nav>
-        <h3>VNM Car Rental</h3>
-        <a href="../php/login-dashboard.php">Home</a>
-        <a href="#cars">Cars</a>
-        <a href="#aboutUs">About</a>
-        <a href="../php/rentalsc.php">Rental Requests</a>
-        <a href="../php/customer_lifecycle.php">Rental History</a>
-        <button popovertarget="logout">Logout</button>
-    </nav>
+    <h3>VNM Car Rental</h3>
+    <a href="../php/login-dashboard.php">Home</a>
+    <a href="../php/login-dashboard.php#cars">Cars</a> 
+    <a href="../php/login-dashboard.php#aboutUs">About</a>
+    <a href="../php/rentalsc.php">Rental Requests</a>
+    <a href="../php/customer_lifecycle.php">Rental History</a>
+    <a href="../php/edit_account.php">Account</a>
+    <button popovertarget="logout">Logout</button>
+</nav>
     <main>
         <section id="upcoming">
             <h3>Active & Upcoming Rentals (Pending, Approved, Picked Up)</h3>
             <?php if ($current_details->num_rows > 0): ?>
                 <?php while ($row = $current_details->fetch_assoc()): 
                     $request_id = htmlspecialchars($row['request_id']);
+                    $car_id = htmlspecialchars($row['car_id']); 
+                    $daily_rate = (float)($row['daily_rate'] ?? 0.00); 
+                    $rental_duration_days = (int)($row['rental_duration_days']);
+                    
                     $rental_date_display = date('F j, Y', strtotime($row['rental_date']));
                     $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
                     $status_text = htmlspecialchars($row['request_status']);
                     $payment_status = htmlspecialchars($row['payment_status']);
+                    
+                    // Calculate original expected return date
+                    $old_end_date = date('Y-m-d', strtotime($row['rental_date'] . ' + ' . $rental_duration_days . ' days'));
+                    
+                    // --- Refund/Cost Calculation for Active Rentals ---
+                    $refund_amount = 0.00;
+                    $final_charge = (float)($row['total_cost'] ?? 0.00); // Default to original cost
+                    $original_cost = (float)($row['total_cost'] ?? 0.00);
+
+                    if (!empty($row['total_deducted_cost'])) {
+                        $final_charge = (float)($row['total_deducted_cost']);
+                        $refund_amount = max(0, $original_cost - $final_charge);
+                    }
+                    // --- End Refund/Cost Calculation ---
                     
                     // Color coding for main status
                     $status_color = 'grey';
                     if ($status_text === 'Pending') $status_color = 'orange';
                     if ($status_text === 'Approved') $status_color = '#007bff';
                     if ($status_text === 'Picked Up') $status_color = 'green';
-                    
+                    if ($status_text === 'Early Return Requested') $status_color = 'purple'; 
+                    if ($status_text === 'Early_Return_Approved') $status_color = '#ffc107'; 
+                    if ($status_text === 'Early_Return_Scheduled') $status_color = 'blueviolet'; 
+
                     $payment_status_color = '#dc3545'; 
                     if ($payment_status === 'Paid') {
                         $payment_status_color = 'darkgreen';
@@ -249,19 +342,37 @@ $history_details = $stmt_history->get_result();
                         'car_display' => $car_display,
                         'total_cost' => number_format($row['total_cost'], 2)
                     ]);
+                    
+                    $schedule_popover_data = json_encode([ // Data for schedule popover
+                        'request_id' => $row['request_id'],
+                        'car_display' => $car_display,
+                        'min_date' => $row['pickup_date_actual'], // Actual Pickup Date is the earliest possible return date
+                        'max_date' => $row['expected_return_date'], // Original Expected Return Date is the latest possible return date for an 'Early' return
+                    ]);
+                    
+                    /* <<< EXTENSION DATA >>> */
+                    $extend_popover_data = json_encode([
+                        'request_id' => $row['request_id'],
+                        'car_display' => $car_display,
+                        'daily_rate' => $daily_rate,
+                        'old_end_date' => $old_end_date,
+                        'car_id' => $car_id
+                    ]);
+                    /* <<< END EXTENSION DATA >>> */
                 ?>
                 <div class="rental-detail">
                     <div class="detail">
                         <h4><?= $car_display ?></h4>
                         <p>Scheduled Pickup: <strong><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></strong></p>
-                        <p>Duration: <?= htmlspecialchars($row['rental_duration_days']) ?> Days | Cost: ₱<?= number_format($row['total_cost'], 2) ?></p>
-                        <p>Request Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= $status_text ?></span></p>
+                        <p>Duration: <?= $rental_duration_days ?> Days | Original Cost: ₱<?= number_format($original_cost, 2) ?></p>
+                        <p>Request Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= str_replace('_', ' ', $status_text) ?></span></p> 
                         <p>Payment Status: <span style="font-weight: bold; color: <?= $payment_status_color ?>;"><?= $payment_status ?></span></p>
                         
                         <?php if ($status_text === 'Picked Up'): ?>
                             <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
                                 Actual Pickup Date: <?= date('M j, Y', strtotime($row['pickup_date_actual'])) ?><br>
-                                Pickup Mileage: <?= number_format($row['odometer_pickup'] ?? 0) ?> km
+                                Pickup Mileage: <?= number_format($row['odometer_pickup'] ?? 0) ?> km<br>
+                                Original End Date: <?= date('M j, Y', strtotime($old_end_date)) ?>
                             </p>
                         <?php endif; ?>
                     </div>
@@ -283,19 +394,66 @@ $history_details = $stmt_history->get_result();
                                 <input type="hidden" name="action" value="cancel">
                                 <button type="submit" style="background-color: grey; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-top: 10px;">Cancel Request</button>
                             </form>
-                        <?php elseif ($status_text === 'Early_Return_Pending'): ?>
-                            <p style="color: purple; font-weight: bold; margin: 0;">Awaiting Return Approval</p>
+                        <?php elseif ($status_text === 'Early Return Requested'): ?>
+                            <p style="color: purple; font-weight: bold; margin: 0;">Early Return Request Submitted</p>
+                            <?php if ($refund_amount > 0): ?>
+                                <p style="font-size: 0.9em; color: yellow; font-weight: bold; margin-top: 5px;">
+                                    Est. Refund: ₱<?= number_format($refund_amount, 2) ?>
+                                </p>
+                            <?php else: ?>
+                                <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
+                                    Est. Final Charge: ₱<?= number_format($final_charge, 2) ?> (No Refund Due)
+                                </p>
+                            <?php endif; ?>
+                        <?php elseif ($status_text === 'Early_Return_Approved'): ?>
+                            <p style="color: #ffc107; font-weight: bold; margin: 0;">Return Approved! Schedule Now:</p>
+                            <?php if ($refund_amount > 0): ?>
+                                <p style="font-size: 0.9em; color: yellow; font-weight: bold; margin-top: 5px;">
+                                    Est. Refund: ₱<?= number_format($refund_amount, 2) ?>
+                                </p>
+                            <?php else: ?>
+                                <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
+                                    Est. Final Charge: ₱<?= number_format($final_charge, 2) ?> (No Refund Due)
+                                </p>
+                            <?php endif; ?>
+                            <button 
+                                data-popover-details='<?= htmlspecialchars($schedule_popover_data, ENT_QUOTES, 'UTF-8') ?>' 
+                                onclick="openSchedulePopover(this)"
+                                popovertarget="schedule-popover"
+                                style="background-color: #ffc107; color: black; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;"
+                            >Schedule Actual Return</button>
+                        <?php elseif ($status_text === 'Early_Return_Scheduled'): ?>
+                            <p style="color: blueviolet; font-weight: bold; margin: 0;">Return Scheduled:</p>
+                            <?php if ($refund_amount > 0): ?>
+                                <p style="font-size: 0.9em; color: yellow; font-weight: bold; margin-top: 5px;">
+                                    Est. Refund: ₱<?= number_format($refund_amount, 2) ?>
+                                </p>
+                            <?php endif; ?>
+                            <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
+                                <strong style="color: yellow;">Awaiting Admin Processing</strong><br>
+                                Date: <?= date('M j, Y', strtotime($row['scheduled_return_date'])) ?><br>
+                                Time: <?= date('h:i A', strtotime($row['scheduled_return_time'])) ?>
+                            </p>
                         <?php elseif ($status_text === 'Picked Up'): ?>
                             <p style="color: green; font-weight: bold; margin: 0;">ACTIVE RENTAL</p>
                         <?php endif; ?>
 
                         <?php if ($status_text === 'Picked Up'): ?>
-                            <form action="request_return.php" method="post">
+                            <form action="request_return.php" method="post" style="display: inline-block; margin-right: 10px;">
                                 <input type="hidden" name="return_id" value="<?php echo $request_id?>">
                                 <input type="hidden" name="return_date" value="<?php echo date('Y-m-d'); ?>">
                                 <input type="hidden" name="start_date" value="<?php echo $row['pickup_date_actual']?>">
-                                <button type="submit" name="return_button">Return</button>
+                                <button type="submit" name="return_button" class="vnm-action-button">Return</button> 
                             </form>
+                            
+                            <button 
+                                id="extend-button-<?= $row['request_id'] ?>" 
+                                data-popover-details='<?= htmlspecialchars($extend_popover_data, ENT_QUOTES, 'UTF-8') ?>' 
+                                onclick="openExtendPopover(this)"
+                                popovertarget="extend-popover"
+                                class="vnm-action-button" style="margin-top: 10px;"
+                            ><i class="fas fa-calendar-plus"></i> Extend Rental</button>
+
                         <?php endif; ?>
 
                     </div>
@@ -316,6 +474,18 @@ $history_details = $stmt_history->get_result();
                     $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
                     $status_text = htmlspecialchars($row['request_status']);
                     
+                    // --- Refund/Cost Calculation for History ---
+                    $refund_amount_hist = 0.00;
+                    $original_cost_hist = (float)($row['total_cost'] ?? 0.00);
+                    $final_cost_display = number_format($original_cost_hist, 2);
+
+                    if ($status_text === 'Returned' && !empty($row['total_deducted_cost'])) {
+                        $final_charge_hist = (float)($row['total_deducted_cost']);
+                        $refund_amount_hist = max(0, $original_cost_hist - $final_charge_hist);
+                        $final_cost_display = number_format($final_charge_hist, 2);
+                    }
+                    // --- End Refund/Cost Calculation ---
+                    
                     $status_color = 'grey'; 
 
                     if ($status_text === 'Returned') {
@@ -330,7 +500,17 @@ $history_details = $stmt_history->get_result();
                     <div class="detail">
                         <h4><?= $car_display ?></h4>
                         <p>Scheduled Pickup: <strong><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></strong></p>
-                        <p>Cost: ₱<?= number_format($row['total_cost'], 2) ?></p>
+                        <p>Original Cost: ₱<?= number_format($original_cost_hist, 2) ?></p>
+                        
+                        <?php if ($status_text === 'Returned'): ?>
+                            <?php if ($refund_amount_hist > 0): ?>
+                                <p style="color: #28a745; font-weight: bold;">Final Charge: ₱<?= $final_cost_display ?></p>
+                                <p style="color: yellow; font-weight: bold;">Refund Processed: ₱<?= number_format($refund_amount_hist, 2) ?></p>
+                            <?php elseif (!empty($row['total_deducted_cost'])): ?>
+                                <p style="color: #28a745; font-weight: bold;">Final Charge: ₱<?= $final_cost_display ?></p>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                        
                         <p>Final Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= strtoupper($status_text) ?></span></p>
                         
                         <?php if ($status_text === 'Returned'): ?>
@@ -346,7 +526,7 @@ $history_details = $stmt_history->get_result();
                     <div class="action-status">
                         <?php if ($status_text === 'Returned'): ?>
                             <p style="color: darkgreen; font-weight: bold; margin: 0;">COMPLETED</p>
-                        <?php else: ?>
+                        <? else: ?>
                             <p style="color: <?= $status_color ?>; font-weight: bold; margin: 0;">STOPPED</p>
                         <?php endif; ?>
                     </div>
@@ -369,7 +549,7 @@ $history_details = $stmt_history->get_result();
                 <input type="hidden" name="payment_method" id="popoverPaymentMethod">
 
                 <label for="payment-method-select"><strong>Payment Method:</strong></label>
-                <select name="payment_method_select" id="payment-method-select" onchange="showQr(this.value)" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                <select name="payment_method_select" id="payment-method-select" onchange="showQr(this.value)">
                     <option value="">-- Select --</option>
                     <option value="gcash">GCash</option>
                     <option value="maya">Maya</option>
@@ -382,7 +562,7 @@ $history_details = $stmt_history->get_result();
                 </div>
                 
                 <label for="payment-proof-file"><strong>Upload Proof of Payment (Image/PDF):</strong></label>
-                <input type="file" name="payment_proof" id="payment-proof-file" accept="image/*,application/pdf" required style="width: 100%; margin: 5px 0;">
+                <input type="file" name="payment_proof" id="payment-proof-file" accept="image/*,application/pdf" required>
                 
                 <button type="submit">Upload Proof & Confirm</button>
             </form>
@@ -390,9 +570,91 @@ $history_details = $stmt_history->get_result();
             <p style="margin-top: 15px; font-size: 0.85em; color: #ddd; text-align: center;">Your payment status will be updated to "Proof Uploaded" for admin verification.</p>
         </div>
         
-    </main>
+        <div id="schedule-popover" popover="auto">
+            <h3>Schedule Early Return</h3>
+            <p><strong>Car:</strong> <span id="schedulePopoverCar"></span></p>
+            <p>Please input the initial date and initial time you expect to return the car (must be before the original contract end date).</p>
+            <hr>
+
+            <form id="schedule-form" action="submit_early_return_schedule.php" method="POST">
+                <input type="hidden" name="action" value="submit_schedule">
+                <input type="hidden" name="request_id" id="schedulePopoverRequestId">
+                
+                <div class="schedule-form-content">
+                    <label for="schedule-date" style="display: block; margin-top: 10px;"><strong>Initial Return Date:</strong></label>
+                    <input type="date" name="schedule_date" id="schedule-date" required>
+
+                    <label for="schedule-time" style="display: block; margin-top: 10px;"><strong>Initial Return Time:</strong></label>
+                    <input type="time" name="schedule_time" id="schedule-time" required>
+                </div>
+                <button type="submit">Submit Return Schedule</button>
+            </form>
+        </div>
+        
+        <div id="extend-popover" popover="auto">
+            <h3>Extend Rental Period</h3>
+            <p><strong>Car:</strong> <span id="extendPopoverCar"></span></p>
+            <p>Original End Date: <strong id="extendPopoverOldEndDate"></strong></p>
+            <hr>
+
+            <form id="extendRentalForm" enctype="multipart/form-data">
+                <input type="hidden" name="request_id" id="extendPopoverRequestId">
+                <input type="hidden" name="car_id" id="extendPopoverCarId">
+                <input type="hidden" name="daily_rate" id="extendPopoverDailyRate">
+                <input type="hidden" name="old_end_date" id="extendPopoverOldEndDateHidden">
+
+                <div class="form-group">
+                    <label for="days_to_extend"><strong>Days to Extend:</strong></label>
+                    <input type="number" class="form-control" id="days_to_extend" name="days_to_extend" min="1" required>
+                </div>
+                
+                <h6 style="margin-top: 15px;">Extension Summary:</h6>
+                <p>
+                    <span class="font-weight-bold" style="color: #ff5722;">New Estimated Cost: </span>
+                    <span id="extensionCost" class="font-weight-bold" style="color: #ff5722;">₱ 0.00</span>
+                </p>
+                <p>
+                    <span class="font-weight-bold" style="color: #00bcd4;">New Estimated End Date: </span>
+                    <span id="newEndDate" class="font-weight-bold" style="color: #00bcd4;">N/A</span>
+                </p>
+
+                <hr>
+                <h6 class="font-weight-bold">Payment Details for Extension</h6>
+                <div class="alert alert-info" style="padding: 10px; background-color: #007bff; color: white; border-radius: 4px; font-size: 0.9em;" role="alert">
+                    Please pay the calculated **New Estimated Cost** and upload your proof below.
+                </div>
+                
+                <div class="form-group">
+                    <label for="payment_method"><strong>Payment Method:</strong></label>
+                    <select class="form-control" id="extend_payment_method" name="payment_method" required onchange="showExtendQr(this.value)">
+                        <option value="">Select Method</option>
+                        <option value="gcash">GCash</option>
+                        <option value="maya">Maya</option>
+                    </select>
+                    
+                    <div id="extend_qr_codes" class="mt-2 text-center" style="display: none;">
+                        <img id="extend_gcash_qr" src="<?= htmlspecialchars($gcash_qr_path) ?>" alt="GCash QR" style="max-width: 150px; display: none;">
+                        <img id="extend_maya_qr" src="<?= htmlspecialchars($maya_qr_path) ?>" alt="Maya QR" style="max-width: 150px; display: none;">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="payment_reference_no"><strong>Payment Reference Number:</strong></label>
+                    <input type="text" class="form-control" id="payment_reference_no" name="payment_reference_no" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="payment_proof_path"><strong>Upload Payment Proof (Image):</strong></label>
+                    <input type="file" class="form-control-file" id="payment_proof_path_extend" name="payment_proof_path" accept="image/*" required>
+                </div>
+                
+                <button type="submit">Submit Extension Request</button>
+            </form>
+        </div>
+        </main>
     
     <script>
+        // Existing Popover Elements (UNCHANGED)
         const popoverRequestId = document.getElementById('popoverRequestId');
         const popoverPaymentMethod = document.getElementById('popoverPaymentMethod');
         const paymentMethodSelect = document.getElementById('payment-method-select');
@@ -402,22 +664,58 @@ $history_details = $stmt_history->get_result();
         const mayaQr = document.getElementById('popoverMayaQr');
         const qrInstructions = document.getElementById('qr-instructions');
 
+        // Schedule Popover Elements (UNCHANGED)
+        const schedulePopoverRequestId = document.getElementById('schedulePopoverRequestId');
+        const schedulePopoverCar = document.getElementById('schedulePopoverCar');
+        const scheduleDateInput = document.getElementById('schedule-date');
+
+        // NEW Extend Popover Elements
+        const extendPopoverRequestId = document.getElementById('extendPopoverRequestId');
+        const extendPopoverCarId = document.getElementById('extendPopoverCarId');
+        const extendPopoverDailyRate = document.getElementById('extendPopoverDailyRate');
+        const extendPopoverOldEndDateHidden = document.getElementById('extendPopoverOldEndDateHidden');
+        const extendPopoverCar = document.getElementById('extendPopoverCar');
+        const extendPopoverOldEndDate = document.getElementById('extendPopoverOldEndDate');
+        const daysToExtendInput = document.getElementById('days_to_extend');
+        const extensionCostSpan = document.getElementById('extensionCost');
+        const newEndDateSpan = document.getElementById('newEndDate');
+        const extendPaymentMethodSelect = document.getElementById('extend_payment_method');
+        const extendGcashQr = document.getElementById('extend_gcash_qr');
+        const extendMayaQr = document.getElementById('extend_maya_qr');
+        
+        // --- Existing Popover Functions (UNCHANGED) ---
         function openPaymentPopover(button) {
             try {
-                // Parse details from the button's data attribute
                 const data = JSON.parse(button.getAttribute('data-popover-details'));
-                
                 popoverCar.textContent = data.car_display;
                 popoverTotalCost.textContent = data.total_cost;
                 popoverRequestId.value = data.request_id;
-                
-                // Reset QR display and selection
                 paymentMethodSelect.value = ""; 
                 showQr(""); 
-                
             } catch (e) {
                 console.error("Error loading payment data:", e);
                 alert("Could not load payment details. Data error.");
+            }
+        }
+        
+        function openSchedulePopover(button) {
+            try {
+                const data = JSON.parse(button.getAttribute('data-popover-details'));
+                schedulePopoverCar.textContent = data.car_display;
+                schedulePopoverRequestId.value = data.request_id;
+                
+                const today = new Date().toISOString().split('T')[0];
+                const pickupDate = data.min_date;
+                const maxDate = data.max_date;
+
+                let minDate = (today > pickupDate) ? today : pickupDate;
+
+                scheduleDateInput.setAttribute('min', minDate);
+                scheduleDateInput.setAttribute('max', maxDate);
+                scheduleDateInput.value = ''; 
+            } catch (e) {
+                console.error("Error loading schedule data:", e);
+                alert("Could not load scheduling details. Data error.");
             }
         }
 
@@ -439,6 +737,136 @@ $history_details = $stmt_history->get_result();
             }
         }
         
+        // --- NEW: Extend Popover Functions and Logic (UNCHANGED) ---
+
+        function openExtendPopover(button) {
+            try {
+                const data = JSON.parse(button.getAttribute('data-popover-details'));
+                
+                // Set hidden form values
+                extendPopoverRequestId.value = data.request_id;
+                extendPopoverCarId.value = data.car_id;
+                extendPopoverDailyRate.value = data.daily_rate;
+                extendPopoverOldEndDateHidden.value = data.old_end_date;
+
+                // Set display values
+                extendPopoverCar.textContent = data.car_display;
+                extendPopoverOldEndDate.textContent = new Date(data.old_end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                
+                // Reset form inputs
+                daysToExtendInput.value = '';
+                extensionCostSpan.textContent = '₱ 0.00';
+                newEndDateSpan.textContent = 'N/A';
+                document.getElementById('payment_reference_no').value = '';
+                document.getElementById('payment_proof_path_extend').value = '';
+                extendPaymentMethodSelect.value = '';
+                showExtendQr('');
+
+            } catch (e) {
+                console.error("Error loading extension data:", e);
+                alert("Could not load extension details. Data error.");
+            }
+        }
+        
+        function showExtendQr(method) {
+            extendGcashQr.style.display = 'none';
+            extendMayaQr.style.display = 'none';
+            document.getElementById('extend_qr_codes').style.display = 'none';
+            
+            if (method === 'gcash') {
+                extendGcashQr.style.display = 'block';
+                document.getElementById('extend_qr_codes').style.display = 'block';
+            } else if (method === 'maya') {
+                extendMayaQr.style.display = 'block';
+                document.getElementById('extend_qr_codes').style.display = 'block';
+            }
+        }
+
+        // Calculation and AJAX Logic (UNCHANGED)
+        $(document).ready(function() {
+            // 1. Calculate Cost and New End Date on Input Change (for extend form)
+            $('#days_to_extend').on('input', function() {
+                const dailyRate = parseFloat($('#extendPopoverDailyRate').val());
+                const oldEndDateStr = $('#extendPopoverOldEndDateHidden').val();
+                let days = parseInt($(this).val());
+                
+                if (days > 0 && dailyRate) {
+                    const additionalCost = days * dailyRate;
+                    
+                    // Calculate new end date
+                    let oldDate = new Date(oldEndDateStr);
+                    let newDate = new Date(oldDate.getTime());
+                    newDate.setDate(newDate.getDate() + days);
+                    
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    const formattedNewDate = newDate.toLocaleDateString('en-US', options);
+
+                    $('#extensionCost').text('₱ ' + additionalCost.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","));
+                    $('#newEndDate').text(formattedNewDate);
+                } else {
+                    $('#extensionCost').text('₱ 0.00');
+                    $('#newEndDate').text('N/A');
+                }
+            });
+
+            // 2. Handle Extend Rental Form Submission via AJAX
+            $('#extendRentalForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                const dailyRate = parseFloat($('#extendPopoverDailyRate').val());
+                const oldEndDateStr = $('#extendPopoverOldEndDateHidden').val();
+                const daysToExtend = parseInt($('#days_to_extend').val());
+
+                if (daysToExtend <= 0 || isNaN(daysToExtend)) {
+                    Swal.fire('Validation Error', 'Please enter a valid number of days to extend.', 'error');
+                    return;
+                }
+                if ($('#extend_payment_method').val() === "") {
+                    Swal.fire('Validation Error', 'Please select a payment method.', 'error');
+                    return;
+                }
+                // Client-side file check (basic)
+                if (document.getElementById('payment_proof_path_extend').files.length === 0) {
+                    Swal.fire('Validation Error', 'Payment proof is required.', 'error');
+                    return;
+                }
+
+                const formData = new FormData(this);
+                const additionalCostRaw = daysToExtend * dailyRate;
+                formData.append('additional_cost', additionalCostRaw.toFixed(2));
+                
+                // Calculate and append the new end date (in YYYY-MM-DD format)
+                let oldDate = new Date(oldEndDateStr);
+                let newDate = new Date(oldDate.getTime());
+                newDate.setDate(newDate.getDate() + daysToExtend);
+                
+                // Use ISO string split to ensure YYYY-MM-DD format without time zone issues
+                formData.append('new_end_date', newDate.toISOString().split('T')[0]);
+
+                $.ajax({
+                    url: 'extend_rental_endpoint.php', // This is the file that will process the extension request
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Success!', response.message, 'success').then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire('Error!', response.message, 'error');
+                        }
+                    },
+                    error: function() {
+                        Swal.fire('Error!', 'An error occurred while submitting the request.', 'error');
+                    }
+                });
+            });
+        });
+        
+        // --- Existing Form Submissions (UNCHANGED) ---
         document.getElementById('payment-form').onsubmit = function() {
             if (popoverPaymentMethod.value === "") {
                 alert("Please select a payment method (GCash or Maya) before uploading proof.");
@@ -451,13 +879,36 @@ $history_details = $stmt_history->get_result();
             return true;
         };
 
-        // Handle URL parameters after successful upload
+        // Schedule Form Validation
+        document.getElementById('schedule-form').onsubmit = function() {
+            if (scheduleDateInput.value === "" || document.getElementById('schedule-time').value === "") {
+                alert("Please input both the date and time for the early return schedule.");
+                return false;
+            }
+            return true;
+        };
+
+
+        // Handle URL parameters after successful upload (UNCHANGED)
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('success') === 'payment_proof_uploaded') {
                 alert("Payment proof successfully uploaded! Please wait for admin verification.");
                 
-                // Clean the URL to remove the success parameter after the alert
+                if (history.replaceState) {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    history.replaceState({path:cleanUrl},'',cleanUrl);
+                }
+            } else if (urlParams.get('success_schedule')) { 
+                alert(decodeURIComponent(urlParams.get('success_schedule')));
+                 
+                if (history.replaceState) {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    history.replaceState({path:cleanUrl},'',cleanUrl);
+                }
+            } else if (urlParams.get('success_return')) { 
+                alert(decodeURIComponent(urlParams.get('success_return')));
+                 
                 if (history.replaceState) {
                     const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                     history.replaceState({path:cleanUrl},'',cleanUrl);
@@ -468,7 +919,7 @@ $history_details = $stmt_history->get_result();
 </body>
 </html>
 <?php
-$stmt_current->close();
-$stmt_history->close();
-$conn->close();
+if (isset($stmt_current) && $stmt_current) $stmt_current->close();
+if (isset($stmt_history) && $stmt_history) $stmt_history->close();
+if (isset($conn)) $conn->close();
 ?>

@@ -1,8 +1,5 @@
 <?php
-/**
- * cancel_action.php
- * Handles customer-initiated cancellation of a rental request.
- */
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -59,7 +56,6 @@ try {
         AND request_status IN ('Pending', 'Approved')";
         
     $stmt = $conn->prepare($update_request_sql);
-    // Bind only the status and request_id
     $stmt->bind_param("si", $status, $request_id);
     
     if (!$stmt->execute()) {

@@ -54,10 +54,40 @@ INNER JOIN cars ON rental_requests.car_id = cars.car_id
 $query = "SELECT " . $base_select . " WHERE rental_requests.request_status = 'Pending'"; 
 $details = mysqli_query($conn, $query); 
 
-$approved_in_progress_query = "SELECT " . $base_select . " WHERE rental_requests.request_status IN ('Approved', 'Picked Up')";
+$approved_in_progress_query = "SELECT " . $base_select . " WHERE rental_requests.request_status IN ('Approved', 'Picked Up', 'Early_Return_Approved', 'Early_Return_Scheduled')";
 $approved_in_progress_details = mysqli_query($conn, $approved_in_progress_query);
 
-$completed_query = "SELECT " . $base_select . " WHERE rental_requests.request_status = 'Returned'";
+// NEW QUERY: Early Return Requests (Awaiting Admin approval for the early return itself)
+$early_return_query = "
+    SELECT 
+        rr.request_id, rr.driver_license_photo, rr.rental_date, rr.rental_time,
+        rr.total_cost, rr.rental_duration_days, rr.payment_status, rr.request_status,
+        rr.payment_proof_path, rr.payment_reference_no, rr.admin_notes,
+        users.fullname, cars.car_brand, cars.model, cars.plate_no,
+        rrr.total_deducted_cost /* Added to fetch the calculated final charged amount for review */
+    FROM rental_requests rr
+    INNER JOIN users ON rr.user_id = users.user_id 
+    INNER JOIN cars ON rr.car_id = cars.car_id
+    LEFT JOIN rental_return_requests rrr ON rr.request_id = rrr.request_id 
+    WHERE rr.request_status = 'Early Return Requested'
+";
+$early_return_details = mysqli_query($conn, $early_return_query);
+
+
+// MODIFIED QUERY: Completed Rentals, including total_deducted_cost for refund calculation
+$completed_query = "
+    SELECT 
+        rr.request_id, rr.driver_license_photo, rr.rental_date, rr.rental_time,
+        rr.total_cost, rr.rental_duration_days, rr.payment_status, rr.request_status,
+        rr.payment_proof_path, rr.payment_reference_no, rr.admin_notes,
+        users.fullname, cars.car_brand, cars.model, cars.plate_no,
+        rrr.total_deducted_cost /* Added to fetch the final charged amount */
+    FROM rental_requests rr
+    INNER JOIN users ON rr.user_id = users.user_id 
+    INNER JOIN cars ON rr.car_id = cars.car_id
+    LEFT JOIN rental_return_requests rrr ON rr.request_id = rrr.request_id /* Added join for refund check */
+    WHERE rr.request_status = 'Returned'
+";
 $completed_details = mysqli_query($conn, $completed_query);
 
 $declined_query = "SELECT " . $base_select . " WHERE rental_requests.request_status = 'Rejected'";
@@ -218,6 +248,7 @@ $system_base_path = '/vnm-system1/';
         <a href="/vnm-system1/php/cars/cars.php">Cars</a>
         <a href="/vnm-system1/php/rentals.php">Rentals</a>
         <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
+        <a href="/vnm-system1/php/manage_accounts.php" class="active">Accounts</a> 
         <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
     </div>
 </nav>
@@ -257,7 +288,7 @@ $system_base_path = '/vnm-system1/';
                     <th>Date</th>
                     <th>Time</th>
                     <th>Duration (Days)</th>
-                    <th>Cost</th>
+                    <th>Original Cost</th>
                     <th>Payment Status</th> 
                     <th>Notes</th> 
                     <th>Action</th>
@@ -324,6 +355,65 @@ $system_base_path = '/vnm-system1/';
         </div>
 
         <hr>
+        
+        <h3>Early Return Requests (Needs Approval)</h3>
+        <div class="for-approval">
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>Original Cost</th>
+                    <th>Est. Final Charge</th>
+                    <th>Est. Refund</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Rental Status</th> 
+                    <th>Notes</th> 
+                    <th>Action</th>
+                </tr>
+                <?php
+                if ($early_return_details === false) {
+                    echo "<tr><td colspan='10' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
+                } elseif(isset($early_return_details) && mysqli_num_rows($early_return_details) == 0){
+                    echo "<tr><td colspan = 10>No early return requests awaiting approval</td></tr>";
+                } else{
+                    while ($row = mysqli_fetch_assoc($early_return_details)){
+                        $request_id = htmlspecialchars($row['request_id']);
+                        $original_cost = (float)($row['total_cost'] ?? 0.00);
+                        $final_charge = (float)($row['total_deducted_cost'] ?? $original_cost);
+                        $refund_amount = max(0, $original_cost - $final_charge);
+                        
+                        $request_status = htmlspecialchars($row['request_status']); 
+                        $admin_notes = htmlspecialchars($row['admin_notes']);
+
+                        $status_display = "<span style='font-weight: bold; color: purple;'>{$request_status}</span>";
+
+                        echo "
+                        <tr>
+                            <td>{$row['fullname']}</td>
+                            <td>{$row['car_brand']} ({$row['plate_no']})</td>
+                            <td>₱" . number_format($original_cost, 2) . "</td>
+                            <td style='color: #ffc107; font-weight: bold;'>₱" . number_format($final_charge, 2) . "</td>
+                            <td style='color: yellow; font-weight: bold;'>₱" . number_format($refund_amount, 2) . "</td>
+                            <td>{$row['rental_date']}</td>
+                            <td>{$row['rental_time']}</td>
+                            <td>{$status_display}</td>
+                            <td>
+                                <button type='button' class='notes-btn' data-request-id='{$request_id}' data-admin-notes='{$admin_notes}' onclick='openNotesModal(this)'>Notes</button>
+                            </td>
+                            <td id='status-button'>
+                                <a href='early_return_action.php?request_id={$request_id}&action=approve_early' class='lifecycle-redirect-btn' style='background-color: #28a745;'>Approve Return</a>
+                                <a href='early_return_action.php?request_id={$request_id}&action=reject_early' class='delete-btn' style='margin-top: 5px;'>Reject Return</a>
+                            </td>
+                        </tr>
+                        ";
+                    }
+                }
+                ?>
+            </table>
+        </div>
+        
+        <hr>
 
         <h3>Approved & In-Progress Rental History</h3>
         <div class="for-approval">
@@ -337,7 +427,7 @@ $system_base_path = '/vnm-system1/';
                     <th>Date</th>
                     <th>Time</th>
                     <th>Duration (Days)</th>
-                    <th>Cost</th>
+                    <th>Original Cost</th>
                     <th>Rental Status</th> 
                     <th>Notes</th> 
                     <th>Action</th>
@@ -363,9 +453,11 @@ $system_base_path = '/vnm-system1/';
                         switch ($request_status) {
                             case 'Approved': $status_color = 'blue'; break;
                             case 'Picked Up': $status_color = 'green'; break;
+                            case 'Early_Return_Approved': $status_color = '#ffc107'; break;
+                            case 'Early_Return_Scheduled': $status_color = 'blueviolet'; break;
                             default: $status_color = 'black'; break;
                         }
-                        $status_display = "<span style='font-weight: bold; color: {$status_color};'>{$request_status}</span>";
+                        $status_display = "<span style='font-weight: bold; color: {$status_color};'>". str_replace('_', ' ', $request_status) ."</span>";
 
                         echo "
                         <tr>
@@ -396,6 +488,8 @@ $system_base_path = '/vnm-system1/';
                                     echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn'>Process Pickup/Return</a>";
                                 } elseif ($request_status === 'Picked Up') {
                                     echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn' style='background-color: #008CBA;'>Car is Rented (Manage)</a>";
+                                } elseif ($request_status === 'Early_Return_Approved' || $request_status === 'Early_Return_Scheduled') {
+                                    echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn' style='background-color: purple;'>Early Return Flow</a>";
                                 }
                                 
                                 echo "<form action='history_action.php' method='POST' style='margin-top: 5px;'>
@@ -426,7 +520,7 @@ $system_base_path = '/vnm-system1/';
                     <th>Date</th>
                     <th>Time</th>
                     <th>Duration (Days)</th>
-                    <th>Cost</th>
+                    <th>Original Cost</th>
                     <th>Notes</th> 
                     <th>Action</th>
                 </tr>
@@ -483,7 +577,7 @@ $system_base_path = '/vnm-system1/';
                     <th>Date</th>
                     <th>Time</th>
                     <th>Duration (Days)</th>
-                    <th>Cost</th>
+                    <th>Original Cost</th>
                     <th>Rental Status</th> 
                     <th>Notes</th> 
                     <th>Action</th>
@@ -544,17 +638,18 @@ $system_base_path = '/vnm-system1/';
                     <th>Reference No</th>
                     <th>Date</th>
                     <th>Time</th>
-                    <th>Duration (Days)</th>
-                    <th>Cost</th>
+                    <th>Original Cost</th>
+                    <th>Final Charge</th>
+                    <th>Refund</th>
                     <th>Rental Status</th> 
                     <th>Notes</th> 
                     <th>Action</th>
                 </tr>
                 <?php
                 if ($completed_details === false) {
-                    echo "<tr><td colspan='12' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
+                    echo "<tr><td colspan='13' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($completed_details) && mysqli_num_rows($completed_details) == 0){
-                    echo "<tr><td colspan = 12>No completed rentals</td></tr>"; 
+                    echo "<tr><td colspan = 13>No completed rentals</td></tr>"; 
                 } else{
                     while ($row = mysqli_fetch_assoc($completed_details)){
                         $request_id = htmlspecialchars($row['request_id']);
@@ -565,9 +660,13 @@ $system_base_path = '/vnm-system1/';
                         $request_status = htmlspecialchars($row['request_status']); 
                         $reference_no = htmlspecialchars($row['payment_reference_no']) ?: 'N/A';
                         $admin_notes = htmlspecialchars($row['admin_notes']);
+                        
+                        $original_cost = (float)($row['total_cost'] ?? 0.00);
+                        $final_charge = (float)($row['total_deducted_cost'] ?? $original_cost);
+                        $refund_amount = max(0, $original_cost - $final_charge);
 
                         $status_color = 'gray';
-                        $status_display = "<span style='font-weight: bold; color: {$status_color};'>{$request_status}</span>";
+                        $status_display = "<span style='font-weight: bold; color: darkgreen;'>{$request_status}</span>";
 
                         echo "
                         <tr>
@@ -586,14 +685,15 @@ $system_base_path = '/vnm-system1/';
                             <td>{$reference_no}</td>
                             <td>{$row['rental_date']}</td>
                             <td>{$row['rental_time']}</td>
-                            <td>{$row['rental_duration_days']}</td>
-                            <td>₱" . number_format($row['total_cost'], 2) . "</td>
+                            <td>₱" . number_format($original_cost, 2) . "</td>
+                            <td style='color: #28a745; font-weight: bold;'>₱" . number_format($final_charge, 2) . "</td>
+                            <td style='color: yellow; font-weight: bold;'>₱" . number_format($refund_amount, 2) . "</td>
                             <td>{$status_display}</td>
                             <td>
                                 <button type='button' class='notes-btn' data-request-id='{$request_id}' data-admin-notes='{$admin_notes}' onclick='openNotesModal(this)'>Notes</button>
                             </td>
                             <td id='status-button'>
-                                <p style='color: gray; font-weight: bold;'>Rental Completed</p>
+                                <p style='color: darkgreen; font-weight: bold;'>Rental Completed</p>
                                 <form action='history_action.php' method='POST' style='margin-top: 5px;'>
                                     <input type='hidden' name='request_id' value='{$request_id}'>
                                     <input type='hidden' name='action' value='delete'>
