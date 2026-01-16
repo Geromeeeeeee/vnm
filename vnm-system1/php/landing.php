@@ -22,6 +22,25 @@ if ($result) {
     $cars = $result->fetch_all(MYSQLI_ASSOC);
 }
 
+$featured_sql = "SELECT 
+    c.car_id,
+    c.model,
+    c.image,
+    COUNT(r.car_id) AS rental_count 
+    FROM cars c 
+    JOIN rental_requests r ON c.car_id = r.car_id
+    GROUP BY c.car_id, c.model, c.image
+    ORDER BY rental_count DESC";
+
+$featured_result = $conn->query($featured_sql);
+$featured_cars = [];
+
+if($featured_result){
+    while($row = mysqli_fetch_assoc($featured_result)){
+        $featured_cars[] = $row;
+    }
+}
+
 $upload_dir = '/vnm-system1/php/cars/uploads/cars/';
 
 $carousel_html = '';
@@ -56,6 +75,18 @@ foreach ($cars as $car) {
         )">View Details</button>
     </div>';
 }
+
+$featured_html = " ";
+foreach ($featured_cars as $car){
+    $img_path = !empty($car['image']) ? $upload_dir . urlencode($car['image']) : 'placeholder.jpg';
+        $featured_html .= "
+            <div class='cars' id='featured-cars'>
+            <img src='" . $img_path . "' alt='" . htmlspecialchars($car['model']) . "' id='featured_img'>
+                <h3>" . htmlspecialchars($car['model']) . "</h3>
+                <p>Rented ".(int)$car['rental_count']." Times</p>
+            </div>
+        ";
+    }
 
 include '../html/landing.html';
 ?>

@@ -59,4 +59,22 @@ main{
         box-shadow: 0px 0px 15px 0px rgba(0,0,0,0.25);
         border-radius: var(--radius-m);
     }
+    .most-rented-cars{
+        box-shadow: none;
+    }
+    .most-rented-cars table{
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--font-fam);
+        border: none;
+        box-shadow: 0px 0px 15px 0px rgba(0,0,0,0.25);
+    }
+    .most-rented-cars table th, table td{
+        border: 1px solid grey;
+        padding: var(--padding-s);
+    }
+    .most-rented-cars tr:nth-child(even){
+        background-color: lightgray;
+
+    }
 }

@@ -3,8 +3,6 @@
 	ini_set('display_errors', 1);
     include 'db.php';
 
-    $query = "SELECT MONTH(rental_date) AS m, SUM(total_cost) AS total_sales FROM rental_requests GROUP BY MONTH(rental_date) ORDER BY MONTH(rental_date)";
-
     $updated_query = " SELECT 
                     YEAR(rental_date) AS y, 
                     MONTH(rental_date) AS m, 
@@ -53,6 +51,21 @@
     $result5 = mysqli_query($conn, $query5);
     $available = mysqli_fetch_assoc($result5);
     $available_cars = $available['available'];
+
+    $query6 = "SELECT 
+                c.model,
+                c.plate_no,
+                COUNT(rs.request_id) AS rental_count,
+                SUM(IFNULL(rs.final_amount_settled, 0)) AS total_income
+            FROM cars c
+            LEFT JOIN rental_requests r
+                ON c.car_id = r.car_id
+            LEFT JOIN rental_summary rs
+                ON r.request_id = rs.request_id
+            GROUP BY c.model, c.plate_no
+            ORDER BY total_income DESC;
+";
+    $result6 = mysqli_query($conn, $query6);
 ?>
 
 <!DOCTYPE html>
@@ -61,7 +74,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/common.css ?v=1.2">
-    <link rel="stylesheet" href="/vnm-system1/css/admin_panel.css ?v=1.14">
+    <link rel="stylesheet" href="/vnm-system1/css/admin_panel.css ?v=1.167">
     <title>VNM Admin</title>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
@@ -138,6 +151,40 @@
         <h3>Monthly Sales</h3>
         <section class="monthly-sales">
             <div id="columnchart"></div>
+        </section>
+        <h3>Rental Frequency</h3>
+        <section class="most-rented-cars">
+            <table>
+                <tr>
+                    <th>Model</th>
+                    <th>Plate No.</th>
+                    <th>Rental Frequency</th>
+                    <th>Total Income</th>
+                </tr>
+                <?php
+                    while($row6 =(mysqli_fetch_assoc($result6))){
+                        $model = htmlspecialchars($row6['model']);
+                        $plate_no = htmlspecialchars($row6['plate_no']);
+                        $rental_freq = htmlspecialchars($row6['rental_count']);
+                        $total_income = htmlspecialchars($row6['total_income']);
+
+                        echo"
+                            <tr>
+                                <td>{$row6['model']}</td>
+                                <td>{$row6['plate_no']}</td>
+                        ";
+                        if($row6['rental_count']<1){
+                            echo"<td>No rentals</td>";
+                        }else{
+                            echo"<td>{$row6['rental_count']}</td>";
+                        }
+                        echo"
+                                <td>{$row6['total_income']}</td>
+                            </tr>
+                        ";
+                    }
+                ?>
+            </table>
         </section>
     </main>
 </body>

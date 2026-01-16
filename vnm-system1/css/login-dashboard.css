@@ -52,7 +52,7 @@
         width: 100%;
         height: 80vh;
     }
-    main section:nth-child(2) .carousel{
+    .carousel{
         min-width: 100%;
         height: 100%;
         padding: var(--padding-l);
@@ -162,15 +162,16 @@
        align-items: center;
     }
     #recommendation{
-        background-color: green;
         width: 100%;
-        height: 80vh;
-    }
-    #recommendation img{
-        width: 20%;
-        height: auto;
-    }
-    .featured-cars{
+        height: 100vh;
         display: flex;
+        flex-direction: column;
+        padding: var(--padding-s);
+    }
+    .recommendation h3{
+        font-size: var(--font-xl);
+    }
+    .recommendation h3, .recommendation p{
+        margin: var(--padding-l);
     }
 }

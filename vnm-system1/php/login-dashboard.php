@@ -34,26 +34,6 @@ if ($result) {
     $cars = $result->fetch_all(MYSQLI_ASSOC);
 }
 
-//sql query para sa featured page
-$featured_sql = "SELECT 
-    c.car_id,
-    c.model,
-    c.image,
-    COUNT(r.car_id) AS rental_count 
-    FROM cars c 
-    JOIN rental_requests r ON c.car_id = r.car_id
-    GROUP BY c.car_id, c.model, c.image
-    ORDER BY rental_count DESC";
-
-$featured_result = $conn->query($featured_sql);
-$featured_cars = [];
-
-if($featured_result){
-    while($row = mysqli_fetch_assoc($featured_result)){
-        $featured_cars[] = $row;
-    }
-}
-
 // sql query for recommendation part. sorry if magulo :/
 
 $recommendation_sql = "SELECT c.car_brand, c.fuel_type, c.transmission
@@ -175,17 +155,6 @@ foreach ($cars as $car) {
     </div>';
 }
 
-foreach ($featured_cars as $car){
-    $img_path = !empty($car['image']) ? $upload_dir . urlencode($car['image']) : 'placeholder.jpg';
-        $featured_html .= "
-            <div class='featured-cars'>
-            <img src='" . $img_path . "' alt='" . htmlspecialchars($car['model']) . "'>
-                <h3>" . htmlspecialchars($car['model']) . "</h3>
-                <p>Rented ".(int)$car['rental_count']." Times</p>
-            </div>
-        ";
-    }
-
 $recommended_html = '';
 
 foreach ($recommended_cars as $car) {
@@ -211,10 +180,12 @@ foreach ($recommended_cars as $car) {
     $main_image_path = !empty($car['image']) ? $upload_dir . urlencode($car['image']) : 'placeholder.jpg';
 
     $recommended_html .= '
-    <div class="recommended-cars">
+    <div class="cars">
         <img src="' . $main_image_path . '" alt="' . htmlspecialchars($car['model']) . '">
+        <div class="car-info-before-click">
         <h4>' . htmlspecialchars($car['model']) . ' (' . htmlspecialchars($car['year']) . ')</h4>
         <p>Fuel: ' . htmlspecialchars($car['fuel_type']) . ' | Trans: ' . htmlspecialchars($car['transmission']) . '</p>
+        </div>
         <button popovertarget="view-details" 
             onclick="openDetailsModal(
                 \'' . $car_id_js . '\', 
