@@ -155,22 +155,22 @@
         margin-top: auto;
         margin-left: auto;
     }
-    .car-details button:nth-child(5) a{
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .car-details button:nth-child(4) a{
+       display: flex;
+       height: 100%;
+       justify-content: center;
+       align-items: center;
     }
     #recommendation{
         background-color: green;
         width: 100%;
         height: 80vh;
-        display: flex;
-        flex-direction: row;
     }
     #recommendation img{
         width: 20%;
         height: auto;
+    }
+    .featured-cars{
+        display: flex;
     }
 }

@@ -5,7 +5,16 @@
 
     $query = "SELECT MONTH(rental_date) AS m, SUM(total_cost) AS total_sales FROM rental_requests GROUP BY MONTH(rental_date) ORDER BY MONTH(rental_date)";
 
-    $result = mysqli_query($conn, $query);
+    $updated_query = " SELECT 
+                    YEAR(rental_date) AS y, 
+                    MONTH(rental_date) AS m, 
+                    SUM(final_amount_settled) 
+                    AS total_sales 
+                    FROM rental_summary 
+                    GROUP BY YEAR(rental_date), MONTH(rental_date) 
+                    ORDER BY YEAR(rental_date), MONTH(rental_date)";
+
+    $result = mysqli_query($conn, $updated_query);
 
     $table_1_data = [];
     if (mysqli_num_rows($result)==0) {
@@ -13,16 +22,19 @@
     }else{
         while($row = mysqli_fetch_assoc($result)){
             $monthNum = (int)$row['m'];
+            $yearNum = $row['y'];
 
             $monthName = date("F", mktime(0, 0, 0, $monthNum, 1));
 
-            $table_1_data[] = [$monthName, (float)$row['total_sales']];
+            $label = $monthName . " " . $yearNum;
+
+            $table_1_data[] = [$label, (float)$row['total_sales']];
         }
     }
 
     $table_1_json = json_encode($table_1_data);
     
-    $query2 = "SELECT SUM(total_cost) AS total_sales FROM rental_requests";
+    $query2 = "SELECT SUM(final_amount_settled) AS total_sales FROM rental_summary";
     $result2 = mysqli_query($conn, $query2);
     $sales_sum = mysqli_fetch_assoc($result2);
     $total_sales_value = $sales_sum['total_sales'];

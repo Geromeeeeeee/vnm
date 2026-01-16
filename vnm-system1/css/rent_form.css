@@ -36,6 +36,7 @@ nav button:nth-child(8){
     main{
         display: grid;
         place-items: center;
+        margin: 5vh;
     }
     #rent-details{
         display: grid;
@@ -48,7 +49,8 @@ nav button:nth-child(8){
         -webkit-box-shadow: 0px 0px 15px 0px rgba(255,255,255,0.5);
         -moz-box-shadow: 0px 0px 15px 0px rgba(255,255,255,0.5);
         width: 75vw;
-        height: 90vh;
+        height: auto;
+        min-height: 70vh;
     }
     .car-img{
         display: grid;
@@ -61,6 +63,7 @@ nav button:nth-child(8){
         height: 100%;
         width: 100%;
         object-fit: cover;
+
     }
     #img1{
         grid-area: 1 / 1 / 2 / 2;
@@ -78,6 +81,7 @@ nav button:nth-child(8){
         padding: 5vh;
         display: flex;
         flex-direction: column;
+        height: 100%;
     }
     form input{
         margin-bottom: var(--space-s);
