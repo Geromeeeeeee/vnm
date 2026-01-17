@@ -106,7 +106,7 @@ $system_base_path = '/vnm-system1/';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/common.css ?v=1.2">
-    <link rel="stylesheet" href="../css/rentals.css ?v=1.05"> 
+    <link rel="stylesheet" href="../css/rentals.css ?v=1.08"> 
     <title>Rentals</title>
     <style>
         
@@ -628,7 +628,7 @@ $system_base_path = '/vnm-system1/';
         <hr>
 
         <h3>Rental Completed History</h3>
-        <div class="for-approval">
+        <div class="for-approval completed-history">
             <table>
                 <tr>
                     <th>Renter</th>

@@ -348,12 +348,13 @@ img.preview { width:80px; height:80px; object-fit:cover; border-radius:4px; curs
     text-align: center;
 }
 
-
 table td, table th { 
     text-align:center; 
     padding:2.5vh;
     height: 3vh;
     width: fit-content;
+    border: 1px solid lightgray;
+    border-collapse: collapse;
 }
 
 .gallery-modal-content {

@@ -157,7 +157,11 @@ foreach ($cars as $car) {
 
 $recommended_html = '';
 
-foreach ($recommended_cars as $car) {
+if(empty($recommended_html)){
+    $recommended_html.='<h4>No Rental History</h4>';
+}else{
+    foreach ($recommended_cars as $car) {
+
     $popover_images = [];
 
     // Main image
@@ -196,6 +200,6 @@ foreach ($recommended_cars as $car) {
         )">View Details</button>
     </div>';
 }
-
+}
 include '../html/dashboard.html';
 ?>
