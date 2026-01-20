@@ -277,6 +277,11 @@ $system_base_path = '/vnm-system1/';
           </a>
         </li>
         <li class="nav-item">
+          <a href="/vnm-system1/php/car_lifecycle.php" class="nav-link">
+            <p>Car Status</p>
+          </a>
+        </li>
+        <li class="nav-item">
           <a href="/vnm-system1/php/manage_accounts.php" class="nav-link">
             <p>Accounts</p>
           </a>

@@ -184,8 +184,13 @@ if ($ext_result) {
           </a>
         </li>
         <li class="nav-item">
-          <a href="/vnm-system1/php/rentals.php" class="nav-link bg-gray">
+          <a href="/vnm-system1/php/rentals.php" class="nav-link">
             <p>Rentals</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/car_lifecycle.php" class="nav-link bg-gray">
+            <p>Car Status</p>
           </a>
         </li>
         <li class="nav-item">
