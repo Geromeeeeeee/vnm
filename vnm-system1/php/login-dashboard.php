@@ -157,7 +157,7 @@ foreach ($cars as $car) {
 
 $recommended_html = '';
 
-if(empty($recommended_html)){
+if(mysqli_num_rows($reco_result)==0){
     $recommended_html.='<h4>No Rental History</h4>';
 }else{
     foreach ($recommended_cars as $car) {

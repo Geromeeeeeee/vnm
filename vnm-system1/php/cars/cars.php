@@ -219,8 +219,17 @@ $result = $conn->query($sql);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="/vnm-system1/css/common.css"> 
-<link rel="stylesheet" href="/vnm-system1/php/cars/cars.css">
+<link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+
+    <title>VNM Admin</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
 <title>VNM/Cars</title>
 <style>
 
@@ -395,24 +404,48 @@ table td, table th {
 }
 </style>
 </head>
-<body>
-<nav>
-    <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
-    <div class="navLink">
-        <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
-        <a href="/vnm-system1/php/cars/cars.php">Cars</a>
-        <a href="/vnm-system1/php/rentals.php">Rentals</a>
-        <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
-        <a href="/vnm-system1/php/manage_accounts.php" class="active">Accounts</a> 
-        <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
-    </div>
-</nav>
+<body class="hold-transition sidebar-mini layout-fixed">
+ <aside class="main-sidebar sidebar-light-primary elevation-4 layout-fixed">
+  <a href="/vnm-system1/php/adminindex.php" class="brand-link">
+    <img src="/vnm-system1/photos/VNM logo.png" 
+         alt="VNM Logo" 
+         class="brand-image img-square "
+         style="opacity: .8">
+    <span class="brand-text font-weight-light">VNM Admin</span>
+  </a>
+  <div class="sidebar">
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar flex-column" 
+          data-widget="treeview" role="menu" data-accordion="false">
+        <li class="nav-item">
+          <a href="/vnm-system1/php/adminindex.php" class="nav-link">
+            <p>Dashboard</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/cars/cars.php" class="nav-link bg-gray">
+            <p>Cars</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/rentals.php" class="nav-link">
+            <p>Rentals</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/manage_accounts.php" class="nav-link">
+            <p>Accounts</p>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</aside>
+<div class="content-wrapper p-3">
+    <button class="btn btn-primary mb-3" popovertarget="add-vehicle">Add Vehicle</button>
 
-<main>
-<button popovertarget="add-vehicle">Add Vehicle</button>
-
- <div popover id="add-vehicle">
-    <form action="" method="POST" enctype="multipart/form-data" class="form" id="add-vehicle-form">
+    <div popover id="add-vehicle">
+      <form action="" method="POST" enctype="multipart/form-data" class="card card-body">
         <label>Main Image</label>
         <input type="file" name="image">
 
@@ -451,13 +484,16 @@ table td, table th {
 
         <label>Description</label>
         <textarea name="description" rows="4" placeholder="Enter car description..."></textarea>
-        
-        <button type="submit" class="submit">Add Vehicle</button>
-    </form>
- </div>
+    
+        <button type="submit" class="btn btn-success w-100 mt-2">Add Vehicle</button>
+      </form>
+    </div>
+
+<main>
 
 <h3>Vehicles Table</h3>
-<table border="1" cellpadding="10" cellspacing="0" style="width:100%; font-family:Arial; margin-bottom:20px;">
+
+<table border="1" cellpadding="10" cellspacing="0" style="width:100%; font-family:Arial; margin-bottom:20px;" class="card card-primary card-outline overflow-auto">
 <tr>
     <th>ID</th><th>Image</th><th>Model</th><th>Plate No.</th><th>Brand</th><th>Year</th><th>Daily Rate</th>
     <th>Owner</th><th>Fuel Type</th><th>Transmission</th><th>Description</th><th>Location ID</th><th>Availability</th><th>Actions</th>
