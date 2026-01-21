@@ -105,17 +105,9 @@ $system_base_path = '/vnm-system1/';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-    <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
-
+    <link rel="stylesheet" href="../css/common.css ?v=1.2">
+    <link rel="stylesheet" href="../css/rentals.css ?v=1.08"> 
     <title>Rentals</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
     <style>
         
         .modal {
@@ -248,101 +240,60 @@ $system_base_path = '/vnm-system1/';
         }
     </style>
 </head>
-<body class="hold-transition sidebar-mini layout-fixed">
-    <aside class="main-sidebar sidebar-light-primary elevation-4 layout-fixed">
-  <a href="/vnm-system1/php/adminindex.php" class="brand-link">
-    <img src="/vnm-system1/photos/VNM logo.png" 
-         alt="VNM Logo" 
-         class="brand-image img-square "
-         style="opacity: .8">
-    <span class="brand-text font-weight-light">VNM Admin</span>
-  </a>
-  <div class="sidebar">
-    <nav class="mt-2">
-      <ul class="nav nav-pills nav-sidebar flex-column" 
-          data-widget="treeview" role="menu" data-accordion="false">
-        <li class="nav-item">
-          <a href="/vnm-system1/php/adminindex.php" class="nav-link">
-            <p>Dashboard</p>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="/vnm-system1/php/cars/cars.php" class="nav-link">
-            <p>Cars</p>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="/vnm-system1/php/rentals.php" class="nav-link bg-gray">
-            <p>Rentals</p>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="/vnm-system1/php/car_lifecycle.php" class="nav-link">
-            <p>Car Status</p>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="/vnm-system1/php/manage_accounts.php" class="nav-link">
-            <p>Accounts</p>
-          </a>
-        </li>
-      </ul>
+<body>
+    <nav>
+    <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
+    <div class="navLink">
+        <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
+        <a href="/vnm-system1/php/cars/cars.php">Cars</a>
+        <a href="/vnm-system1/php/rentals.php">Rentals</a>
+        <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
+        <a href="/vnm-system1/php/manage_accounts.php" class="active">Accounts</a> 
+        <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
+    </div>
+</nav>
     </nav>
-  </div>
-</aside>
+    <main>
+        <div id="licenseModal" class="modal">
+            <span class="close" onclick="closeModal('licenseModal')">&times;</span>
+            <img class="modal-content" id="licenseImage" alt="Document Photo">
+        </div>
 
-<div class="content-wrapper">
-            <div id="licenseModal" class="modal">
-                <span class="close" onclick="closeModal('licenseModal')">&times;</span>
-                <img class="modal-content" id="licenseImage" alt="Document Photo">
+        <div id="notesModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('notesModal')">&times;</span>
+                <h4>Admin Notes for Request #<span id="notesRequestIdDisplay"></span></h4>
+                <form id="notesForm" action="rentals.php" method="POST">
+                    <input type="hidden" name="action" value="update_admin_notes">
+                    <input type="hidden" name="request_id" id="notesRequestIdInput">
+                    <textarea name="admin_notes" id="adminNotesTextarea" placeholder="Enter notes here..."></textarea>
+                    <button type="submit">Save Notes</button>
+                </form>
             </div>
+        </div>
+        
+        <?php if (isset($_GET['success']) && $_GET['success'] === 'notes_updated'): ?>
+            <p style="color: darkgreen; font-weight: bold; text-align: center;">✅ Admin notes successfully updated.</p>
+        <?php endif; ?>
 
-            <div id="notesModal" class="modal">
-                <div class="modal-content">
-                    <span class="close" onclick="closeModal('notesModal')">&times;</span>
-                    <h4>Admin Notes for Request #<span id="notesRequestIdDisplay"></span></h4>
-                    <form id="notesForm" action="rentals.php" method="POST">
-                        <input type="hidden" name="action" value="update_admin_notes">
-                        <input type="hidden" name="request_id" id="notesRequestIdInput">
-                        <textarea name="admin_notes" id="adminNotesTextarea" placeholder="Enter notes here..."></textarea>
-                        <button type="submit">Save Notes</button>
-                    </form>
-                </div>
-            </div>
-
-            <?php if (isset($_GET['success']) && $_GET['success'] === 'notes_updated'): ?>
-                <p style="color: darkgreen; font-weight: bold; text-align: center;">✅ Admin notes successfully updated.</p>
-            <?php endif; ?>
-
-            <section class="content-header">
-                <div class="container-fluid">
-                    <h1>Rental Requests</h1>
-                </div>
-            </section>
-
-            <section class="content">
-                <div class="container-fluid">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Pending Rental Requests</h3>
-                        </div>
-                        <div class="card-body table-responsive p-0" style="max-height: 500px;">
-                            <table class="table table-hover table-bordered text-center">
-                                <tr>
-                                    <th>Renter</th>
-                                    <th>Car</th>
-                                    <th>License</th>
-                                    <th>Payment Proof</th>
-                                    <th>Reference No</th>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Duration (Days)</th>
-                                    <th>Original Cost</th>
-                                    <th>Payment Status</th>
-                                    <th>Notes</th>
-                                    <th>Action</th>
-                                </tr>
-                                <?php
+        <h3>Pending Rental Requests</h3>
+        <div class="for-approval">
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>License</th>
+                    <th>Payment Proof</th> 
+                    <th>Reference No</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Duration (Days)</th>
+                    <th>Original Cost</th>
+                    <th>Payment Status</th> 
+                    <th>Notes</th> 
+                    <th>Action</th>
+                </tr>
+                <?php
                 if ($details === false) {
                     echo "<tr><td colspan='12' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(mysqli_num_rows($details) == 0){
@@ -387,12 +338,12 @@ $system_base_path = '/vnm-system1/';
                                 <form action='rental_action.php' method='POST'>
                                     <input type='hidden' name='request_id' value='{$request_id}'>
                                     <input type='hidden' name='action' value='approve'>
-                                    <button type='submit' class='btn btn-success btn-sm w-100' >Approve</button>
+                                    <button type='submit' class='approve-btn'>Approve</button>
                                 </form>
                                 <form action='rental_action.php' method='POST'>
                                     <input type='hidden' name='request_id' value='{$request_id}'>
                                     <input type='hidden' name='action' value='decline'>
-                                    <button type='submit' class='btn btn-danger btn-sm w-100 mt-1'>Decline</button>
+                                    <button type='submit' class='decline-btn'>Decline</button>
                                 </form>
                             </td>
                         </tr>
@@ -400,29 +351,27 @@ $system_base_path = '/vnm-system1/';
                     }
                 }
                 ?>
-                            </table>
-                        </div>
-                    </div>
+            </table>
+        </div>
 
-                    <div class="card mt-4">
-                        <div class="card-header">
-                            <h3 class="card-title">Early Return Requests (Needs Approval)</h3>
-                        </div>
-                        <div class="card-body table-responsive p-0" style="max-height: 500px;">
-                            <table class="table table-hover table-bordered text-center">
-                                <tr>
-                                    <th>Renter</th>
-                                    <th>Car</th>
-                                    <th>Original Cost</th>
-                                    <th>Est. Final Charge</th>
-                                    <th>Est. Refund</th>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Rental Status</th>
-                                    <th>Notes</th>
-                                    <th>Action</th>
-                                </tr>
-                                <?php
+        <hr>
+        
+        <h3>Early Return Requests (Needs Approval)</h3>
+        <div class="for-approval">
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>Original Cost</th>
+                    <th>Est. Final Charge</th>
+                    <th>Est. Refund</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Rental Status</th> 
+                    <th>Notes</th> 
+                    <th>Action</th>
+                </tr>
+                <?php
                 if ($early_return_details === false) {
                     echo "<tr><td colspan='10' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($early_return_details) && mysqli_num_rows($early_return_details) == 0){
@@ -453,39 +402,37 @@ $system_base_path = '/vnm-system1/';
                                 <button type='button' class='notes-btn' data-request-id='{$request_id}' data-admin-notes='{$admin_notes}' onclick='openNotesModal(this)'>Notes</button>
                             </td>
                             <td id='status-button'>
-                                <a href='approve_early_return.php?request_id={$request_id}&action=approve_early' class='lifecycle-redirect-btn' style='background-color: #28a745;'>Approve Return</a>
-                                <a href='early_return_action.php?request_id={$request_id}&action=reject_early' class='btn btn-danger btn-sm w-100 mt-1' style='margin-top: 5px;'>Reject Return</a>
+                                <a href='early_return_action.php?request_id={$request_id}&action=approve_early' class='lifecycle-redirect-btn' style='background-color: #28a745;'>Approve Return</a>
+                                <a href='early_return_action.php?request_id={$request_id}&action=reject_early' class='delete-btn' style='margin-top: 5px;'>Reject Return</a>
                             </td>
                         </tr>
                         ";
                     }
                 }
                 ?>
-                            </table>
-                        </div>
-                    </div>
+            </table>
+        </div>
+        
+        <hr>
 
-                    <div class="card mt-4">
-                        <div class="card-header">
-                            <h3 class="card-title">Approved & In-Progress Rental History</h3>
-                        </div>
-                        <div class="card-body table-responsive p-0" style="max-height: 500px;">
-                            <table class="table table-hover table-bordered text-center">
-                                <tr>
-                                    <th>Renter</th>
-                                    <th>Car</th>
-                                    <th>License</th>
-                                    <th>Payment Proof</th>
-                                    <th>Reference No</th>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Duration (Days)</th>
-                                    <th>Original Cost</th>
-                                    <th>Rental Status</th>
-                                    <th>Notes</th>
-                                    <th>Action</th>
-                                </tr>
-                                <?php
+        <h3>Approved & In-Progress Rental History</h3>
+        <div class="for-approval">
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>License</th>
+                    <th>Payment Proof</th> 
+                    <th>Reference No</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Duration (Days)</th>
+                    <th>Original Cost</th>
+                    <th>Rental Status</th> 
+                    <th>Notes</th> 
+                    <th>Action</th>
+                </tr>
+                <?php
                 if ($approved_in_progress_details === false) {
                     echo "<tr><td colspan='12' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($approved_in_progress_details) && mysqli_num_rows($approved_in_progress_details) == 0){
@@ -538,24 +485,7 @@ $system_base_path = '/vnm-system1/';
                             <td id='status-button'>";
 
                                 if ($request_status === 'Approved') {
-                                    // Show approve payment button if proof is uploaded
-                                    if ($payment_status === 'Proof Uploaded') {
-                                        echo "<form action='rental_action.php' method='POST' style='margin-bottom: 5px;'>
-                                                <input type='hidden' name='request_id' value='{$request_id}'>
-                                                <input type='hidden' name='action' value='approve_payment'>
-                                                <button type='submit' class='btn btn-success btn-sm w-100'>Approve Payment</button>
-                                            </form>";
-                                    }
-                                    
-                                    $rental_date = strtotime($row['rental_date']);
-                                    $today = strtotime(date('Y-m-d'));
-                                    
-                                    if ($rental_date <= $today) {
-                                        echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn'>Process Pickup/Return</a>";
-                                    } else {
-                                        $date_formatted = date('M d, Y', $rental_date);
-                                        echo "<button disabled class='lifecycle-redirect-btn' style='background-color: #ccc; cursor: not-allowed;' title='Available on {$date_formatted}'>Available on {$date_formatted}</button>";
-                                    }
+                                    echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn'>Process Pickup/Return</a>";
                                 } elseif ($request_status === 'Picked Up') {
                                     echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn' style='background-color: #008CBA;'>Car is Rented (Manage)</a>";
                                 } elseif ($request_status === 'Early_Return_Approved' || $request_status === 'Early_Return_Scheduled') {
@@ -565,7 +495,7 @@ $system_base_path = '/vnm-system1/';
                                 echo "<form action='history_action.php' method='POST' style='margin-top: 5px;'>
                                         <input type='hidden' name='request_id' value='{$request_id}'>
                                         <input type='hidden' name='action' value='delete'>
-                                        <button type='submit' class='btn btn-danger btn-sm w-100 mt-1'>Delete</button>
+                                        <button type='submit' class='delete-btn'>Delete</button>
                                     </form>";
                             
                             echo "</td>
@@ -574,34 +504,31 @@ $system_base_path = '/vnm-system1/';
                     }
                 }
                 ?>
-                            </table>
-                        </div>
-                    </div>
+            </table>
+        </div>
+        
+        <hr>
 
-                    <div class="card mt-4">
-                        <div class="card-header">
-                            <h3 class="card-title">Declined Rental Requests</h3>
-                        </div>
-                        <div class="card-body table-responsive p-0" style="max-height: 500px;">
-                            <table class="table table-hover table-bordered text-center">
-                                <tr>
-                                    <th>Renter</th>
-                                    <th>Car</th>
-                                    <th>License</th>
-                                    <th>Payment Proof</th>
-                                    <th>Reference No</th>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Duration (Days)</th>
-                                    <th>Original Cost</th>
-                                    <th>Rental Status</th>
-                                    <th>Notes</th>
-                                </tr>
-                                <?php
+        <h3>Declined Rental History</h3>
+        <div class="for-approval">
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>License</th>
+                    <th>Reference No</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Duration (Days)</th>
+                    <th>Original Cost</th>
+                    <th>Notes</th> 
+                    <th>Action</th>
+                </tr>
+                <?php
                 if ($declined_details === false) {
-                    echo "<tr><td colspan='11' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
+                    echo "<tr><td colspan='10' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($declined_details) && mysqli_num_rows($declined_details) == 0){
-                    echo "<tr><td colspan = 11>No declined requests</td></tr>"; 
+                    echo "<tr><td colspan = 10>No declined requests</td></tr>"; 
                 } else{
                     while ($row = mysqli_fetch_assoc($declined_details)){
                         $request_id = htmlspecialchars($row['request_id']);
@@ -628,7 +555,7 @@ $system_base_path = '/vnm-system1/';
                                 <form action='history_action.php' method='POST'>
                                     <input type='hidden' name='request_id' value='{$request_id}'>
                                     <input type='hidden' name='action' value='delete'>
-                                    <button type='submit' class='btn btn-danger btn-sm w-100 mt-1'>Delete</button>
+                                    <button type='submit' class='delete-btn'>Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -636,34 +563,30 @@ $system_base_path = '/vnm-system1/';
                     }
                 }
                 ?>
-                            </table>
-                        </div>
-                    </div>
+            </table>
+        </div>
 
-                    <div class="card mt-4">
-                        <div class="card-header">
-                            <h3 class="card-title">Cancelled Rental Requests</h3>
-                        </div>
-                        <div class="card-body table-responsive p-0" style="max-height: 500px;">
-                            <table class="table table-hover table-bordered text-center">
-                                <tr>
-                                    <th>Renter</th>
-                                    <th>Car</th>
-                                    <th>License</th>
-                                    <th>Payment Proof</th>
-                                    <th>Reference No</th>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Duration (Days)</th>
-                                    <th>Original Cost</th>
-                                    <th>Rental Status</th>
-                                    <th>Notes</th>
-                                </tr>
-                                <?php
+        <hr>
+
+        <h3>Cancelled Rental History</h3>
+        <div class="for-approval">
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Duration (Days)</th>
+                    <th>Original Cost</th>
+                    <th>Rental Status</th> 
+                    <th>Notes</th> 
+                    <th>Action</th>
+                </tr>
+                <?php
                 if ($cancelled_details === false) {
-                    echo "<tr><td colspan='11' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
+                    echo "<tr><td colspan='9' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($cancelled_details) && mysqli_num_rows($cancelled_details) == 0){
-                    echo "<tr><td colspan = 11>No cancelled rentals</td></tr>"; 
+                    echo "<tr><td colspan = 9>No cancelled rentals</td></tr>"; 
                 } else{
                     while ($row = mysqli_fetch_assoc($cancelled_details)){
                         $request_id = htmlspecialchars($row['request_id']);
@@ -699,30 +622,30 @@ $system_base_path = '/vnm-system1/';
                     }
                 }
                 ?>
-                            </table>
-                        </div>
-                    </div>
+            </table>
+        </div>
+        
+        <hr>
 
-                    <div class="card mt-4">
-                        <div class="card-header">
-                            <h3 class="card-title">Completed Rentals</h3>
-                        </div>
-                        <div class="card-body table-responsive p-0" style="max-height: 500px;">
-                            <table class="table table-hover table-bordered text-center">
-                                <tr>
-                                    <th>Renter</th>
-                                    <th>Car</th>
-                                    <th>License</th>
-                                    <th>Payment Proof</th>
-                                    <th>Reference No</th>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Duration (Days)</th>
-                                    <th>Original Cost</th>
-                                    <th>Rental Status</th>
-                                    <th>Notes</th>
-                                </tr>
-                                <?php
+        <h3>Rental Completed History</h3>
+        <div class="for-approval completed-history">
+            <table>
+                <tr>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>License</th>
+                    <th>Payment Proof</th> 
+                    <th>Reference No</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Original Cost</th>
+                    <th>Final Charge</th>
+                    <th>Refund</th>
+                    <th>Rental Status</th> 
+                    <th>Notes</th> 
+                    <th>Action</th>
+                </tr>
+                <?php
                 if ($completed_details === false) {
                     echo "<tr><td colspan='13' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($completed_details) && mysqli_num_rows($completed_details) == 0){
@@ -774,7 +697,7 @@ $system_base_path = '/vnm-system1/';
                                 <form action='history_action.php' method='POST' style='margin-top: 5px;'>
                                     <input type='hidden' name='request_id' value='{$request_id}'>
                                     <input type='hidden' name='action' value='delete'>
-                                    <button type='submit' class='btn btn-danger btn-sm w-100 mt-1'>Delete</button>
+                                    <button type='submit' class='delete-btn'>Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -782,14 +705,10 @@ $system_base_path = '/vnm-system1/';
                     }
                 }
                 ?>
-                            </table>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
+            </table>
         </div>
-    </div>
+        
+        </main>
 
     <script>
         

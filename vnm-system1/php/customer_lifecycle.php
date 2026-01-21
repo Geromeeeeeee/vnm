@@ -18,7 +18,6 @@ if (!isset($_SESSION['user'])) {
 
 $current_user_id = (int) $_SESSION['user'];
 
-
 // --- Payment Proof Submission Handler ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_payment_proof') {
     
@@ -225,17 +224,6 @@ $history_details = $stmt_history->get_result();
 
         /* --- START: Vertical Form Fixes for Extend Popover --- */
         /* Ensure the form groups stack vertically */
-        .refund-box {
-    background: #2d2d2d; 
-    border-left: 4px solid #ffc107; 
-    padding: 15px; 
-    margin: 15px 0; 
-    font-size: 0.9em;
-}
-.refund-box ul { 
-    padding-left: 20px; 
-    margin: 5px 0; 
-}
         #extend-popover .form-group {
             display: block; 
             margin-bottom: 15px; 
@@ -381,17 +369,16 @@ $history_details = $stmt_history->get_result();
             'total_cost' => number_format($row['total_cost'], 2)
         ]);
         
-       // Ensure these are strictly YYYY-MM-DD
-// Should look like this in your PHP loop:
-$min_date_iso = date('Y-m-d', strtotime($row['rental_date']));
-$max_date_iso = date('Y-m-d', strtotime($row['expected_return_date']));
+       $min_date_val = !empty($row['pickup_date_actual']) ? $row['pickup_date_actual'] : $row['rental_date'];
+        $max_date_val = !empty($row['expected_return_date']) ? $row['expected_return_date'] : $old_end_date;
 
-$schedule_popover_data = json_encode([
-    'request_id' => $row['request_id'],
-    'car_display' => $car_display,
-    'min_date' => $min_date_iso,
-    'max_date' => $max_date_iso
-]);
+        $schedule_popover_data = json_encode([
+            'request_id' => $row['request_id'],
+            'car_display' => $car_display,
+            'min_date' => date('Y-m-d', strtotime($min_date_val)), 
+            'max_date' => date('Y-m-d', strtotime($max_date_val)), 
+        ]);
+        
         $extend_popover_data = json_encode([
             'request_id' => $row['request_id'],
             'car_display' => $car_display,
@@ -627,42 +614,26 @@ $schedule_popover_data = json_encode([
             <p style="margin-top: 15px; font-size: 0.85em; color: #ddd; text-align: center;">Your payment status will be updated to "Proof Uploaded" for admin verification.</p>
         </div>
         
-      <div id="schedule-popover" popover="auto">
-    <h3>Early Return Schedule</h3>
-    <p><strong>Car:</strong> <span id="schedulePopoverCar"></span></p>
-     <div class="refund-box">
+        <div id="schedule-popover" popover="auto">
+            <h3>Schedule Early Return</h3>
+            <p><strong>Car:</strong> <span id="schedulePopoverCar"></span></p>
+            <p>Please input the initial date and initial time you expect to return the car (must be before the original contract end date).</p>
+            <hr>
 
-        <strong>Refund Rules:</strong>
+            <form id="schedule-form" action="submit_early_return_schedule.php" method="POST">
+                <input type="hidden" name="action" value="submit_schedule">
+                <input type="hidden" name="request_id" id="schedulePopoverRequestId">
+                
+                <div class="schedule-form-content">
+                    <label for="schedule-date" style="display: block; margin-top: 10px;"><strong>Initial Return Date:</strong></label>
+                    <input type="date" name="schedule_date" id="schedule-date" required>
 
-        <ul>
-
-            <li>Returns on the <b>Pickup Date</b> count as Day 1 of usage (charged).</li>
-
-            <li>Returns on the <b>Original Return Date</b> result in <b>No Refund</b>.</li>
-
-     
-
-        </ul>
-
-    </div>
-    <form id="schedule-form" action="submit_early_return_schedule.php" method="POST">
-        <input type="hidden" name="action" value="submit_schedule">
-        <input type="hidden" name="request_id" id="schedulePopoverRequestId">
-        
-        <div class="schedule-form-content">
-            <label for="schedule-date"><strong>Return Date:</strong></label>
-            
-            <input type="date" name="schedule_date" id="schedule-date" required>
-            
-            <small id="date-constraints" style="color: #aaa; display: block; margin-top: 2px;"></small>
-
-            <label for="schedule-time" style="margin-top: 10px;"><strong>Return Time:</strong></label>
-            <input type="time" name="schedule_time" id="schedule-time" required>
+                    <label for="schedule-time" style="display: block; margin-top: 10px;"><strong>Initial Return Time:</strong></label>
+                    <input type="time" name="schedule_time" id="schedule-time" required>
+                </div>
+                <button type="submit">Submit Return Schedule</button>
+            </form>
         </div>
-        
-        <button type="submit">Confirm Return Schedule</button>
-    </form>
-</div>
         
         <div id="extend-popover" popover="auto">
             <h3>Extend Rental Period</h3>
@@ -771,38 +742,36 @@ $schedule_popover_data = json_encode([
             }
         }
         
-     function openSchedulePopover(button) {
+       function openSchedulePopover(button) {
     try {
         const data = JSON.parse(button.getAttribute('data-popover-details'));
-        
-        // 1. Reference the input elements
-        const scheduleDateInput = document.getElementById('schedule-date');
-        const schedulePopoverCar = document.getElementById('schedulePopoverCar');
-        const schedulePopoverRequestId = document.getElementById('schedulePopoverRequestId');
-
-        // 2. Clear old values and constraints to force the browser to refresh
-        scheduleDateInput.value = '';
-        scheduleDateInput.removeAttribute('min');
-        scheduleDateInput.removeAttribute('max');
-
-        // 3. Assign display labels
         schedulePopoverCar.textContent = data.car_display;
         schedulePopoverRequestId.value = data.request_id;
-
-        // 4. Set the new boundaries
-        // min_date should be Jan 28. This grays out all previous dates.
-        scheduleDateInput.setAttribute('min', data.min_date);
         
-        // max_date is the end of the contract. This grays out everything after.
-        scheduleDateInput.setAttribute('max', data.max_date);
+        // Boundaries: Actual Pickup Date and Original Contract End Date
+        const pickupDate = data.min_date; 
+        const originalReturnDate = data.max_date; 
+        
+        // Calculate "Tomorrow" to gray out today and the past
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-        // 5. Ensure the browser doesn't allow manual typing of invalid dates
-        scheduleDateInput.onkeydown = (e) => e.preventDefault();
+        // The earliest they can pick is Tomorrow, 
+        // unless Tomorrow is already past the pickup date.
+        let minSelectable = (tomorrowStr > pickupDate) ? tomorrowStr : pickupDate;
 
-        console.log("Range set: From " + data.min_date + " to " + data.max_date);
+        // Apply restrictions: 
+        // 'min' grays out everything before tomorrow/pickup
+        // 'max' grays out everything after the original return date
+        scheduleDateInput.setAttribute('min', minSelectable);
+        scheduleDateInput.setAttribute('max', originalReturnDate);
 
+        scheduleDateInput.value = ''; 
+        
     } catch (e) {
-        console.error("Error parsing schedule data:", e);
+        console.error("Error loading schedule data:", e);
+        alert("Could not load scheduling details. Data error.");
     }
 }
         function showQr(method) {
