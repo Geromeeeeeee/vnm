@@ -254,7 +254,17 @@ if ($ext_result) {
 
                         if ($row['payment_status'] === 'Proof Uploaded' || $row['payment_status'] === 'Paid') {
                             $status_badge = "<span class='badge badge-success'>Ready for Pick Up</span>";
-                            $action_button = "<a href='car_pickup.php?request_id={$request_id}' class='btn btn-primary btn-sm'>Process Pick Up</a>";
+                            
+                            // Check if rental date has arrived
+                            $rental_date = strtotime($row['rental_date']);
+                            $today = strtotime(date('Y-m-d'));
+                            
+                            if ($rental_date <= $today) {
+                                $action_button = "<a href='car_pickup.php?request_id={$request_id}' class='btn btn-primary btn-sm'>Process Pick Up</a>";
+                            } else {
+                                $date_formatted = date('M d, Y', $rental_date);
+                                $action_button = "<button disabled class='btn btn-secondary btn-sm' style='cursor: not-allowed;' title='Available on {$date_formatted}'>Available on {$date_formatted}</button>";
+                            }
                         } else {
                             $status_badge = "<span class='badge badge-warning'>Awaiting Payment</span>";
                             $action_button = "<span class='text-muted'>Awaiting Payment</span>";

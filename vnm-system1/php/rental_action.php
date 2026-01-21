@@ -79,9 +79,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
             header("Location: rentals.php?error=decline_failed");
         }
         $stmt->close();
-    }
+    } elseif ($action === 'approve_payment') {
+        $payment_status = 'Paid';
+        
+        $update_payment_sql = "UPDATE rental_requests SET payment_status = ? WHERE request_id = ?";
+        $stmt = $conn->prepare($update_payment_sql);
+        $stmt->bind_param("si", $payment_status, $request_id);
 
-    
+        if ($stmt->execute()) {
+            header("Location: rentals.php?status=payment_approved");
+        } else {
+            error_log("Payment approval failed: " . $conn->error);
+            header("Location: rentals.php?error=payment_approval_failed");
+        }
+        $stmt->close();
+    }
 } else {
     header("Location: rentals.php?error=invalid_action");
 }
