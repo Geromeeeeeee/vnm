@@ -33,21 +33,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Accounts | VNM Admin</title>
-    <link rel="stylesheet" href="../css/common.css?v=1.2">
-    <link rel="stylesheet" href="/vnm-system1/css/admin_panel.css?v=1.14">
-    <link rel="stylesheet" href="cars.css"> 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
     
     <style>
-        /* FORCING FONTS FROM PREVIOUS VERSION */
-        :root {
-            --primary-font: 'Poppins', 'Arial', sans-serif;
-        }
-
-        body, table, input, button, textarea {
-            font-family: var(--primary-font) !important;
-        }
-
         main { padding: 40px; width: 100%; box-sizing: border-box; }
         
         .section-container { 
@@ -122,104 +118,151 @@
         }
     </style>
 </head>
-<body>
+<body class="hold-transition sidebar-mini layout-fixed">
 
-<nav>
-    <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
-    <div class="navLink">
-        <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
-        <a href="/vnm-system1/php/cars/cars.php">Cars</a>
-        <a href="/vnm-system1/php/rentals.php">Rentals</a>
-        <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
-        <a href="/vnm-system1/php/manage_accounts.php" class="active">Accounts</a> 
-        <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
-    </div>
-</nav>
+ <aside class="main-sidebar sidebar-light-primary elevation-4 layout-fixed">
+  <a href="/vnm-system1/php/adminindex.php" class="brand-link">
+    <img src="/vnm-system1/photos/VNM logo.png" 
+         alt="VNM Logo" 
+         class="brand-image img-square "
+         style="opacity: .8">
+    <span class="brand-text font-weight-light">VNM Admin</span>
+  </a>
+  <div class="sidebar">
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar flex-column" 
+          data-widget="treeview" role="menu" data-accordion="false">
+        <li class="nav-item">
+          <a href="/vnm-system1/php/adminindex.php" class="nav-link">
+            <p>Dashboard</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/cars/cars.php" class="nav-link">
+            <p>Cars</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/rentals.php" class="nav-link">
+            <p>Rentals</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/car_lifecycle.php" class="nav-link">
+            <p>Car Status</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/manage_accounts.php" class="nav-link bg-gray">
+            <p>Accounts</p>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</aside>
 
-<main>
-    <div class="section-container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h2 class="active-header">Active Customer Accounts</h2>
-            <input type="text" id="searchActive" placeholder="Search by name, email, or license...">
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <h1>Manage Accounts</h1>
         </div>
+    </section>
 
-        <table class="full-table">
-            <thead>
-                <tr>
-                    <th>UID</th>
-                    <th>Full Name</th>
-                    <th>Contact Info</th>
-                    <th>Home Address</th>
-                    <th>License</th>
-                    <th style="text-align: right;">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="activeBody">
-                <?php
-                $res = mysqli_query($conn, "SELECT * FROM users WHERE is_archived = 0 ORDER BY user_id DESC");
-                while($row = mysqli_fetch_assoc($res)):
-                ?>
-                <tr>
-                    <td style="color: #bbb;">#<?php echo $row['user_id']; ?></td>
-                    <td><b style="color: #111; font-size: 16px;"><?php echo htmlspecialchars($row['fullname']); ?></b></td>
-                    <td>
-                        <div style="margin-bottom: 5px;"><i class="fas fa-envelope" style="width: 15px;"></i> <?php echo $row['email']; ?></div>
-                        <div><i class="fas fa-phone" style="width: 15px;"></i> <?php echo $row['phone']; ?></div>
-                    </td>
-                    <td style="font-size: 13px; max-width: 250px; color: #666;"><?php echo htmlspecialchars($row['address']); ?></td>
-                    <td><span class="license-box"><?php echo htmlspecialchars($row['license']); ?></span></td>
-                    <td>
-                        <div class="btn-group">
-                            <button class="action-btn edit-btn" onclick='openEditModal(<?php echo json_encode($row); ?>)' title="Edit Profile"><i class="fas fa-user-edit"></i></button>
-                            <a href="manage_accounts.php?archive_id=<?php echo $row['user_id']; ?>" class="action-btn archive-btn" title="Archive"><i class="fas fa-archive"></i></a>
-                            <a href="manage_accounts.php?delete_id=<?php echo $row['user_id']; ?>" class="action-btn delete-btn" onclick="return confirm('Delete this user permanently?')" title="Delete"><i class="fas fa-trash-alt"></i></a>
-                        </div>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
-    </div>
+    <section class="content">
+        <div class="container-fluid">
 
-    <div class="section-container" style="background: #fafafa; border: 1px dashed #ddd;">
-        <h2 class="archive-header">Archived Accounts</h2>
-        <table class="full-table">
-            <thead>
-                <tr>
-                    <th>UID</th>
-                    <th>Full Name</th>
-                    <th>Contact Info</th>
-                    <th>License</th>
-                    <th style="text-align: right;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $res = mysqli_query($conn, "SELECT * FROM users WHERE is_archived = 1 ORDER BY user_id DESC");
-                if(mysqli_num_rows($res) == 0) echo "<tr><td colspan='5' style='text-align:center; padding: 30px; color: #999;'>No archived records.</td></tr>";
-                while($row = mysqli_fetch_assoc($res)):
-                ?>
-                <tr style="opacity: 0.7;">
-                    <td>#<?php echo $row['user_id']; ?></td>
-                    <td><?php echo htmlspecialchars($row['fullname']); ?></td>
-                    <td><?php echo $row['email']; ?></td>
-                    <td><?php echo htmlspecialchars($row['license']); ?></td>
-                    <td>
-                        <div class="btn-group">
-                            <button class="action-btn edit-btn" onclick='openEditModal(<?php echo json_encode($row); ?>)'><i class="fas fa-edit"></i></button>
-                            <a href="manage_accounts.php?restore_id=<?php echo $row['user_id']; ?>" class="action-btn restore-btn" title="Restore"><i class="fas fa-undo"></i></a>
-                            <a href="manage_accounts.php?delete_id=<?php echo $row['user_id']; ?>" class="action-btn delete-btn" onclick="return confirm('Delete permanently?')"><i class="fas fa-trash"></i></a>
-                        </div>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
-    </div>
-</main>
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">Active Customer Accounts</h3>
+                    <input type="text" id="searchActive" placeholder="Search by name, email, or license..." class="form-control" style="width: 300px;">
+                </div>
+                <div class="card-body table-responsive p-0" style="max-height: 500px;">
+                    <table class="table table-hover table-bordered text-center">
+                        <thead>
+                            <tr>
+                                <th>UID</th>
+                                <th>Full Name</th>
+                                <th>Contact Info</th>
+                                <th>Home Address</th>
+                                <th>License</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeBody">
+                            <?php
+                            $res = mysqli_query($conn, "SELECT * FROM users WHERE is_archived = 0 ORDER BY user_id DESC");
+                            while($row = mysqli_fetch_assoc($res)):
+                            ?>
+                            <tr>
+                                <td>#<?php echo $row['user_id']; ?></td>
+                                <td><?php echo htmlspecialchars($row['fullname']); ?></td>
+                                <td>
+                                    <div><i class="fas fa-envelope"></i> <?php echo $row['email']; ?></div>
+                                    <div><i class="fas fa-phone"></i> <?php echo $row['phone']; ?></div>
+                                </td>
+                                <td><?php echo htmlspecialchars($row['address']); ?></td>
+                                <td><span class="license-box"><?php echo htmlspecialchars($row['license']); ?></span></td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="action-btn edit-btn" onclick='openEditModal(<?php echo json_encode($row); ?>)' title="Edit Profile"><i class="fas fa-user-edit"></i></button>
+                                        <a href="manage_accounts.php?archive_id=<?php echo $row['user_id']; ?>" class="action-btn archive-btn" title="Archive"><i class="fas fa-archive"></i></a>
+                                        <a href="manage_accounts.php?delete_id=<?php echo $row['user_id']; ?>" class="action-btn delete-btn" onclick="return confirm('Delete this user permanently?')" title="Delete"><i class="fas fa-trash-alt"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-<div id="editUserModal" class="modal" style="display:none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);">
-    <div class="modal-content" style="background: white; margin: 5% auto; padding: 40px; width: 480px; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.3);">
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">Archived Accounts</h3>
+                </div>
+                <div class="card-body table-responsive p-0" style="max-height: 500px;">
+                    <table class="table table-hover table-bordered text-center">
+                        <thead>
+                            <tr>
+                                <th>UID</th>
+                                <th>Full Name</th>
+                                <th>Contact Info</th>
+                                <th>License</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $res = mysqli_query($conn, "SELECT * FROM users WHERE is_archived = 1 ORDER BY user_id DESC");
+                            if(mysqli_num_rows($res) == 0) echo "<tr><td colspan='5' class='text-center py-5 text-muted'>No archived records.</td></tr>";
+                            while($row = mysqli_fetch_assoc($res)):
+                            ?>
+                            <tr style="opacity: 0.7;">
+                                <td>#<?php echo $row['user_id']; ?></td>
+                                <td><?php echo htmlspecialchars($row['fullname']); ?></td>
+                                <td><?php echo $row['email']; ?></td>
+                                <td><span class="license-box"><?php echo htmlspecialchars($row['license']); ?></span></td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="action-btn edit-btn" onclick='openEditModal(<?php echo json_encode($row); ?>)'><i class="fas fa-edit"></i></button>
+                                        <a href="manage_accounts.php?restore_id=<?php echo $row['user_id']; ?>" class="action-btn restore-btn" title="Restore"><i class="fas fa-undo"></i></a>
+                                        <a href="manage_accounts.php?delete_id=<?php echo $row['user_id']; ?>" class="action-btn delete-btn" onclick="return confirm('Delete permanently?')"><i class="fas fa-trash"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+
+<div id="editUserModal" class="modal" style="display:none; position:fixed; top:0; left:0; z-index: 9999; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); justify-content:center; align-items:center;">
+    <div class="modal-content" style="background: white; padding: 40px; width: 40vw; max-height:85vh; overflow:auto; scrollbar-width:thin; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.3);">
         <h3 style="margin-top: 0; font-family: var(--primary-font);">Update Customer Information</h3>
         <p style="font-size: 13px; color: #888; margin-bottom: 25px;">Ensure all details are accurate before saving.</p>
         
@@ -279,7 +322,7 @@
         document.getElementById('modal_license').value = userData.license;
         document.getElementById('modal_address').value = userData.address;
         
-        document.getElementById('editUserModal').style.display = 'block';
+        document.getElementById('editUserModal').style.display = 'flex';
     }
 
     function closeModal() {

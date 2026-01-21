@@ -7,35 +7,17 @@
     <link rel="stylesheet" href="../css/login-dashboard.css ?v=1.78">
     <title>VNM Car Rental</title>
     <style>
-        .cars img {
-            object-fit: cover; 
-        }
-        #view-details .car-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover; 
-        }
-        
-        .car-info-before-click {
-            text-align: center;
-            color: var(--font-color); 
-            width: 100%;
-            padding: 5px 0;
-        }
-        .car-info-before-click h4 {
-            margin: 5px 0;
-            font-size: var(--font-m);
-        }
-        .car-info-before-click p {
-            margin: 0;
-            font-size: var(--font-s);
-        }
-        #modalCarDescription {
-            white-space: pre-wrap;
-        }
+        .cars img { object-fit: cover; }
+        #view-details .car-img img { width: 100%; height: 100%; object-fit: cover; }
+        .car-info-before-click { text-align: center; color: var(--font-color); width: 100%; padding: 5px 0; }
+        .car-info-before-click h4 { margin: 5px 0; font-size: var(--font-m); }
+        .car-info-before-click p { margin: 0; font-size: var(--font-s); }
+        #modalCarDescription { white-space: pre-wrap; }
     </style>
 </head>
 <body>
+    <input type="hidden" id="hasActiveRental" value="<?php echo $has_active_rental ? 'true' : 'false'; ?>">
+
      <nav>
         <h3>VNM Car Rental</h3>
         <a href="../php/login-dashboard.php">Home</a>
@@ -62,10 +44,7 @@
 
         <section id="cars">
             <div class="carousel">
-                <?php 
-                // PHP variable $carousel_html generated in login-dashboard.php is injected here
-                echo $carousel_html; 
-                ?>
+                <?php echo $carousel_html; ?>
             </div>
         </section>
 
@@ -100,6 +79,23 @@
     </main>
 
     <script src="../js/dashboard.js"></script>
-    
+
+    <script>
+        document.addEventListener('click', function(e) {
+            // 1. Check if the clicked element is your existing 'Rent' link
+            const rentLink = e.target.closest('#view-details button a');
+            
+            if (rentLink) {
+                // 2. Read the status from the hidden input field we added
+                const rentalStatus = document.getElementById('hasActiveRental').value;
+
+                // 3. If it is 'true', block the action and show your message
+                if (rentalStatus === 'true') {
+                    e.preventDefault(); 
+                    alert("You can't currently rent, you still have an active rental.");
+                }
+            }
+        });
+    </script>
 </body>
 </html>

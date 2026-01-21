@@ -382,6 +382,9 @@ $history_details = $stmt_history->get_result();
                                 popovertarget="payment-popover"
                                 style="background-color: #ffc107; color: black; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; margin-top: 5px;"
                             >Re-submit Payment</button>
+                        <?php elseif ($status_text === 'Approved' && $payment_status === 'Paid'): ?>
+                            <p style="color: darkgreen; font-weight: bold; margin: 0;">✅ Payment Approved</p>
+                            <p style="color: darkgreen; font-weight: bold; margin: 5px 0 0 0;">Pick up on <?= date('F j, Y', strtotime($row['rental_date'])) ?></p>
                         <?php endif; ?>
                         <p>Cost: ₱<?= number_format($row['total_cost'], 2) ?></p>
                     </div>

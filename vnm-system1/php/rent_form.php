@@ -251,6 +251,14 @@ $images = array_pad($images, 4, '');
         cursor: pointer;
         width: 100%;
     }
+    .terms-body p{
+        color: #000;
+    }
+    .terms-link {
+        color: #0066cc;
+        text-decoration: underline;
+        cursor: pointer;
+    }
 </style>
 
 <script>

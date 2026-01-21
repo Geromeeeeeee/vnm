@@ -73,9 +73,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../css/common.css ?v=1.2">
-    <link rel="stylesheet" href="/vnm-system1/css/admin_panel.css ?v=1.167">
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+
     <title>VNM Admin</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
       google.charts.load('current', {'packages':['corechart']});
@@ -103,89 +112,159 @@
       }
     </script>
 </head>
-<body>
-   <nav>
-    <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
-    <div class="navLink">
-        <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
-        <a href="/vnm-system1/php/cars/cars.php">Cars</a>
-        <a href="/vnm-system1/php/rentals.php">Rentals</a>
-        <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
-        <a href="/vnm-system1/php/manage_accounts.php" class="active">Accounts</a> 
-        <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
-    </div>
-</nav>
-    <main>
-        <section id="main-top">
-            <div class="total-users">
-                <h3>Total Users:</h3>
-                <?php   
-                    echo"<h1>{$total_users}</h1>";
-                ?>
-            </div>
-            <div class="total-cars">
-                <h3>Total Cars:</h3>
-                <?php   
-                    echo"<h1>{$total_cars}</h1>";
-                ?>
-            </div>
-            <div class="available-cars">
-                <h3>Available Cars:</h3>
-                <?php   
-                    echo"<h1>{$available_cars}</h1>";
-                ?>
-            </div>
-        </section>
-        <h3>Total Sales</h3>
-        <section class="total-sales">
-            <div class="total-sales-value">
-                <?php
-                    if($total_sales_value == 0 || $total_sales_value === null){
-                        echo "<h3>No sales yet.</h3>";
-                    } else{
-                        echo "<h1>₱{$total_sales_value}</h1>";
-                    }
-                ?>
-            </div>
-        </section>
-        <h3>Monthly Sales</h3>
-        <section class="monthly-sales">
-            <div id="columnchart"></div>
-        </section>
-        <h3>Rental Frequency</h3>
-        <section class="most-rented-cars">
-            <table>
-                <tr>
-                    <th>Model</th>
-                    <th>Plate No.</th>
-                    <th>Rental Frequency</th>
-                    <th>Total Income</th>
-                </tr>
-                <?php
-                    while($row6 =(mysqli_fetch_assoc($result6))){
-                        $model = htmlspecialchars($row6['model']);
-                        $plate_no = htmlspecialchars($row6['plate_no']);
-                        $rental_freq = htmlspecialchars($row6['rental_count']);
-                        $total_income = htmlspecialchars($row6['total_income']);
+<body class="hold-transition sidebar-mini layout-fixed">
+<div class="wrapper">
+        <aside class="main-sidebar sidebar-light-primary elevation-4 layout-fixed">
+  <a href="/vnm-system1/php/adminindex.php" class="brand-link">
+    <img src="/vnm-system1/photos/VNM logo.png" 
+         alt="VNM Logo" 
+         class="brand-image img-square "
+         style="opacity: .8">
+    <span class="brand-text font-weight-light">VNM Admin</span>
+  </a>
+  <div class="sidebar">
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar flex-column" 
+          data-widget="treeview" role="menu" data-accordion="false">
+        <li class="nav-item">
+          <a href="/vnm-system1/php/adminindex.php" class="nav-link bg-gray">
+            <p>Dashboard</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/cars/cars.php" class="nav-link">
+            <p>Cars</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/rentals.php" class="nav-link">
+            <p>Rentals</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/car_lifecycle.php" class="nav-link">
+            <p>Car Status</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/manage_accounts.php" class="nav-link">
+            <p>Accounts</p>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</aside>
+   <div class="content-wrapper">
 
-                        echo"
-                            <tr>
-                                <td>{$row6['model']}</td>
-                                <td>{$row6['plate_no']}</td>
-                        ";
-                        if($row6['rental_count']<1){
-                            echo"<td>No rentals</td>";
-                        }else{
-                            echo"<td>{$row6['rental_count']}</td>";
-                        }
-                        echo"
-                                <td>{$row6['total_income']}</td>
-                            </tr>
-                        ";
-                    }
-                ?>
-            </table>
-        </section>
-    </main>
+    <div class="content-header">
+        <div class="container-fluid">
+            <h1 class="m-0">Dashboard</h1>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            <section id="main-top" class="row">
+                <div class="col-md-4">
+                    <div class="small-box bg-info bg-gray">
+                        <div class="inner">
+                            <h3><?= $total_users ?></h3>
+                            <p>Total Users</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-users text-white"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="small-box bg-success bg-gray">
+                        <div class="inner">
+                            <h3><?= $total_cars ?></h3>
+                            <p>Total Cars</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-car text-white"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="small-box bg-warning bg-gray">
+                        <div class="inner">
+                            <h3><?= $available_cars ?></h3>
+                            <p>Available Cars</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-car-side text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <h3>Total Sales</h3>
+            <section class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="total-sales-value">
+                                <?php
+                                    if($total_sales_value == 0 || $total_sales_value === null){
+                                        echo "<h3>No sales yet.</h3>";
+                                    } else{
+                                        echo "<h1>₱{$total_sales_value}</h1>";
+                                    }
+                                ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <h3>Monthly Sales</h3>
+            <section class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="columnchart" style="height: 400px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <h3>Rental Frequency</h3>
+            <section class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body table-responsive p-0">
+                            <table class="table table-hover text-nowrap">
+                                <thead>
+                                    <tr>
+                                        <th>Model</th>
+                                        <th>Plate No.</th>
+                                        <th>Rental Frequency</th>
+                                        <th>Total Income</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php
+                                        while($row6 = mysqli_fetch_assoc($result6)){
+                                            echo "<tr>";
+                                            echo "<td>{$row6['model']}</td>";
+                                            echo "<td>{$row6['plate_no']}</td>";
+                                            echo "<td>" . ($row6['rental_count'] < 1 ? "No rentals" : $row6['rental_count']) . "</td>";
+                                            echo "<td>{$row6['total_income']}</td>";
+                                            echo "</tr>";
+                                        }
+                                    ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </section>
+</div>
 </body>
 </html>

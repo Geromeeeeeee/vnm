@@ -26,12 +26,34 @@ $total_cost = $_POST['price'] ?? null;
 $request_status = 'Pending';
 
 // ====================================================================
-// NEW VALIDATION: Check if date is today or in the past
+// VALIDATION 1: Check if date is today or in the past
 // ====================================================================
 $today = date('Y-m-d');
 if (!$pickup_date || $pickup_date <= $today) {
     // Redirect back with an error message
     header("Location: rent_form.php?car_id=" . $car_id . "&error=invalid_date_min_tomorrow");
+    exit;
+}
+// ====================================================================
+
+// ====================================================================
+// VALIDATION 2: Check concurrent rental limit (Max 3)
+// ====================================================================
+$active_rental_sql = "SELECT COUNT(*) as active_count FROM rental_requests 
+                      WHERE user_id = ? 
+                      AND request_status IN ('Approved', 'Picked Up', 'Early_Return_Scheduled')";
+$stmt_active = $conn->prepare($active_rental_sql);
+if ($stmt_active === false) {
+    header("Location: rent_form.php?car_id=" . $car_id . "&error=db_check_failed");
+    exit;
+}
+$stmt_active->bind_param("i", $user_id);
+$stmt_active->execute();
+$active_count = $stmt_active->get_result()->fetch_assoc()['active_count'];
+$stmt_active->close();
+
+if ($active_count >= 3) {
+    header("Location: rent_form.php?car_id=" . $car_id . "&error=rental_limit_exceeded");
     exit;
 }
 // ====================================================================

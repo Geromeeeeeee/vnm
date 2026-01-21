@@ -85,11 +85,18 @@ if ($ext_result) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Car Lifecycle</title>
-    <link rel="stylesheet" href="../css/common.css ?v=1.2">
-    <link rel="stylesheet" href="../css/rentals.css ?v=1.06"> 
+    <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css"> 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
     <style>
         main { padding: 20px; max-width: 1200px; margin: 0 auto; }
         .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px; }
@@ -153,194 +160,264 @@ if ($ext_result) {
         .reject-ext-btn:hover { background-color: #a71d2a; }
     </style>
 </head>
-<body>
-   <nav>
-    <div class="logo"><img src="/vnm-system1/photos/VNM logo.png" alt="VNM logo"></div>
-    <div class="navLink">
-        <a href="/vnm-system1/php/adminindex.php">Dashboard</a>
-        <a href="/vnm-system1/php/cars/cars.php">Cars</a>
-        <a href="/vnm-system1/php/rentals.php">Rentals</a>
-        <a href="/vnm-system1/php/car_lifecycle.php" class="active">Car Status</a> 
-        <a href="/vnm-system1/php/manage_accounts.php" class="active">Accounts</a> 
-        <a href="/vnm-system1/php/landing.php" id="logout">Logout</a>
-    </div>
+<body class="hold-transition sidebar-mini layout-fixed">
+   <aside class="main-sidebar sidebar-light-primary elevation-4 layout-fixed">
+  <a href="/vnm-system1/php/adminindex.php" class="brand-link">
+    <img src="/vnm-system1/photos/VNM logo.png" 
+         alt="VNM Logo" 
+         class="brand-image img-square "
+         style="opacity: .8">
+    <span class="brand-text font-weight-light">VNM Admin</span>
+  </a>
+  <div class="sidebar">
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar flex-column" 
+          data-widget="treeview" role="menu" data-accordion="false">
+        <li class="nav-item">
+          <a href="/vnm-system1/php/adminindex.php" class="nav-link">
+            <p>Dashboard</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/cars/cars.php" class="nav-link">
+            <p>Cars</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/rentals.php" class="nav-link">
+            <p>Rentals</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/car_lifecycle.php" class="nav-link bg-gray">
+            <p>Car Status</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="/vnm-system1/php/manage_accounts.php" class="nav-link">
+            <p>Accounts</p>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</aside>
 </nav>
-    <main>
-        <div class="container">
-            <h2>Car Lifecycle Management (Pick Up & Return)</h2>
+    <div class="content-wrapper">
+<section class="content pt-4">
+<div class="container-fluid">
 
-            <?php if (isset($_GET['error'])): ?>
-                <p class="error"> Error: <?= htmlspecialchars($_GET['error']) ?></p>
-            <?php endif; ?>
+<!-- ===================== PICKUP & RETURN ===================== -->
+<div class="card">
+    <div class="card-header bg-gray">
+        <h3 class="card-title text-white">Car Lifecycle Management (Pick Up & Return)</h3>
+    </div>
 
-            <?php if (isset($_GET['success'])): ?>
-                <p class="success"> Success: <?= htmlspecialchars($_GET['success']) ?></p>
-            <?php endif; ?>
+    <div class="card-body">
 
-            <table>
+        <?php if (isset($_GET['error'])): ?>
+            <div class="alert alert-danger">
+                <?= htmlspecialchars($_GET['error']) ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_GET['success'])): ?>
+            <div class="alert alert-success">
+                <?= htmlspecialchars($_GET['success']) ?>
+            </div>
+        <?php endif; ?>
+
+        <table class="table table-bordered table-hover">
+            <thead class="thead-light">
                 <tr>
                     <th>Renter</th>
                     <th>Car Details</th>
                     <th>Scheduled Date/Time</th>
-                    <th>Duration (Days)</th>
-                    <th>Current Status</th>
+                    <th>Duration</th>
+                    <th>Status</th>
                     <th>Pickup Mileage</th>
                     <th>Action</th>
                 </tr>
-                <?php
-                if ($details && mysqli_num_rows($details) > 0) {
-                    while ($row = mysqli_fetch_assoc($details)) {
-                        $request_id = $row['request_id'];
-                        $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
+            </thead>
+            <tbody>
+            <?php
+            if ($details && mysqli_num_rows($details) > 0) {
+                while ($row = mysqli_fetch_assoc($details)) {
 
-                        $status_class = '';
-                        $status_text = '';
-                        $action_button = '';
+                    $request_id = $row['request_id'];
+                    $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
 
-                        if ($row['request_status'] === 'Approved') {
-                            $status_class = 'status-ready';
+                    $status_badge = '';
+                    $action_button = '';
+
+                    if ($row['request_status'] === 'Approved') {
+
+                        if ($row['payment_status'] === 'Proof Uploaded' || $row['payment_status'] === 'Paid') {
+                            $status_badge = "<span class='badge badge-success'>Ready for Pick Up</span>";
                             
-                            if ($row['payment_status'] === 'Proof Uploaded' || $row['payment_status'] === 'Paid') {
-                                $status_text = 'Ready for Pick Up';
-                                $action_button = "<a href='car_pickup.php?request_id={$request_id}' class='pickup-btn'>Process Pick Up</a>";
+                            // Check if today is the rental date
+                            $today = date('Y-m-d');
+                            $rental_date = $row['rental_date'];
+                            $is_rental_date = ($today === $rental_date);
+                            
+                            if ($is_rental_date) {
+                                $action_button = "<a href='car_pickup.php?request_id={$request_id}' class='btn btn-primary btn-sm'>Process Pick Up</a>";
                             } else {
-                                $status_text = 'Awaiting Payment Proof/Payment';
-                                $action_button = "<span style='color: #777;'>Awaiting Payment</span>";
+                                $action_button = "<span class='btn btn-primary btn-sm' style='opacity: 0.5; pointer-events: none; cursor: not-allowed;'>Process Pick Up</span>";
                             }
-                        } elseif ($row['request_status'] === 'Picked Up') {
-                            $status_class = 'status-pickedup';
-                            $status_text = 'On the Road (Rented)';
-                            $action_button = "<a href='car_return.php?request_id={$request_id}' class='return-btn'>Process Return</a>";
-                        } 
-                        // Early Return Requested (Awaiting Approval 1 - handled by separate table below)
-                        elseif ($row['request_status'] === 'Early Return Requested') {
-                            $status_class = 'status-early-return';
-                            $status_text = 'EARLY RETURN REQUESTED (Awaiting Admin Approval)';
-                            $action_button = "<span style='color: #dc3545;'>Awaiting Approval</span>";
+                        } else {
+                            $status_badge = "<span class='badge badge-warning'>Awaiting Payment</span>";
+                            $action_button = "<span class='text-muted'>Awaiting Payment</span>";
                         }
-                        // Early Return Approved (Awaiting Customer Scheduling)
-                        elseif ($row['request_status'] === 'Early_Return_Approved') {
-                            $status_class = 'status-approved-schedule';
-                            $status_text = 'EARLY RETURN APPROVED (Awaiting Customer Schedule)';
-                            $action_button = "<span style='color: blue;'>Awaiting Customer</span>";
-                        }
-                        // Early Return Scheduled (Awaiting Final Process/Approval 2)
-                        elseif ($row['request_status'] === 'Early_Return_Scheduled') { 
-                            $status_class = 'status-scheduled'; 
-                            $status_text = 'EARLY RETURN SCHEDULED (Awaiting Final Process)';
-                            // This button leads to the final return form, referencing return_action.php logic
-                            $action_button = "<a href='car_return.php?request_id={$request_id}' class='return-btn early-return-action-btn'>Process Early Return</a>"; 
-                        } 
 
-                        echo "
-                        <tr>
-                            <td>{$row['fullname']}</td>
-                            <td>{$car_display}</td>
-                            <td>{$row['rental_date']} @ {$row['rental_time']}</td>
-                            <td>{$row['rental_duration_days']}</td>
-                            <td><span class='{$status_class}'>{$status_text}</span></td>
-                            <td>" . ($row['odometer_pickup'] ? number_format($row['odometer_pickup']) . " km" : "N/A") . "</td>
-                            <td class='action-cell'>
-                                {$action_button}
-                            </td>
-                        </tr>
-                        ";
+                    } elseif ($row['request_status'] === 'Picked Up') {
+
+                        $status_badge = "<span class='badge badge-info'>On the Road</span>";
+                        $action_button = "<a href='car_return.php?request_id={$request_id}' class='btn btn-success btn-sm'>Process Return</a>";
+
+                    } elseif ($row['request_status'] === 'Early Return Requested') {
+
+                        $status_badge = "<span class='badge badge-danger'>Early Return Requested</span>";
+                        $action_button = "<span class='text-danger'>Awaiting Approval</span>";
+
+                    } elseif ($row['request_status'] === 'Early_Return_Approved') {
+
+                        $status_badge = "<span class='badge badge-primary'>Awaiting Customer</span>";
+                        $action_button = "<span class='text-primary'>Awaiting Schedule</span>";
+
+                    } elseif ($row['request_status'] === 'Early_Return_Scheduled') {
+
+                        $status_badge = "<span class='badge badge-warning'>Early Return Scheduled</span>";
+                        $action_button = "<a href='car_return.php?request_id={$request_id}' class='btn btn-warning btn-sm'>Process Early Return</a>";
                     }
-                }
-                ?>
-            </table>
-        </div>
 
-        <div class="return-requests container">
-            <h2>Return Requests (Pending Admin Approval)</h2> 
-            <table>
+                    echo "
+                    <tr>
+                        <td>{$row['fullname']}</td>
+                        <td>{$car_display}</td>
+                        <td>{$row['rental_date']} @ {$row['rental_time']}</td>
+                        <td>{$row['rental_duration_days']} days</td>
+                        <td>{$status_badge}</td>
+                        <td>" . ($row['odometer_pickup'] ? number_format($row['odometer_pickup']) . " km" : "N/A") . "</td>
+                        <td>{$action_button}</td>
+                    </tr>";
+                }
+            }
+            ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===================== EARLY RETURN REQUESTS ===================== -->
+<div class="card">
+    <div class="card-header bg-gray">
+        <h3 class="card-title text-white">Return Requests (Pending Admin Approval)</h3>
+    </div>
+
+    <div class="card-body">
+        <table class="table table-bordered table-hover">
+            <thead>
                 <tr>
                     <th>Renter</th>
-                    <th>Car Details</th> 
-                    <th>Requested at</th>
+                    <th>Car</th>
+                    <th>Requested At</th>
                     <th>Total Deducted Cost</th>
-                    <th>Action</th> 
+                    <th>Action</th>
                 </tr>
+            </thead>
+            <tbody>
             <?php
-                if(mysqli_num_rows($query_result)>0){
-                    while($row = mysqli_fetch_assoc($query_result)){
-                        $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})"); 
-                        echo"
-                            <tr>
-                                <td>{$row['fullname']}</td>
-                                <td>{$car_display}</td> 
-                                <td>{$row['requested_at']}</td>
-                                <td>₱" . number_format($row['total_deducted_cost'], 2) . "</td> 
-                                <td>
-                                <form action='approve_early_return.php' method='POST'> 
-                                    <input type='hidden' name='action' value='approve_early_return'> 
-                                    <input type='hidden' name='request_id' value='{$row['request_id']}'> 
-                                    <input type='hidden' name='user_id' value='{$row['user_id']}'> 
-                                    <button class='approve-btn'>Approve Request</button> 
-                                </form>
-                                </td>
-                            </tr>
-                        ";
-                    }
-                } else{
+            if (mysqli_num_rows($query_result) > 0) {
+                while ($row = mysqli_fetch_assoc($query_result)) {
+                    $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
                     echo "
-                        <tr>
-                            <td colspan='5' style='text-align: center;'>No rental return requests pending initial approval</td> 
-                        </tr>
-                    ";
-                }
-            ?>
-            </table>
-        </div>
-        
-        <div class="extension-requests container">
-            <h2>Rental Extension Requests (Pending Approval)</h2> 
-            <table>
-                <thead>
                     <tr>
-                        <th>Ext. ID</th>
-                        <th>Renter</th>
-                        <th>Car Details</th>
-                        <th>Current Duration</th>
-                        <th>Days Added</th>
-                        <th>New End Date</th>
-                        <th>Additional Cost (Proof)</th>
-                        <th>Requested At</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (!empty($extension_requests)): ?>
-                        <?php foreach ($extension_requests as $ext): 
-                            $car_display = htmlspecialchars("{$ext['model']} ({$ext['plate_no']})");
-                        ?>
-                        <tr id="ext_row_<?php echo $ext['extension_id']; ?>">
-                            <td><?php echo $ext['extension_id']; ?></td>
-                            <td><?php echo htmlspecialchars($ext['fullname']); ?></td>
-                            <td><?php echo $car_display; ?></td>
-                            <td><?php echo $ext['current_duration']; ?> days</td>
-                            <td><?php echo $ext['days_to_extend']; ?> days</td>
-                            <td><?php echo date('M d, Y', strtotime($ext['new_end_date'])); ?></td>
-                            <td>
-                                ₱ <?php echo number_format($ext['additional_cost'], 2); ?>
-                                <br><a href="<?php echo $system_base_path . str_replace('../', '', htmlspecialchars($ext['payment_proof_path'])); ?>" target="_blank" class="text-info" style="font-size: 0.9em; color: #007bff;"><i class="fas fa-eye"></i> View Proof</a>
-                            </td>
-                            <td><?php echo date('M d, Y h:i A', strtotime($ext['requested_at'])); ?></td>
-                            <td class="action-cell">
-                                <button class="action-btn-ext approve-ext-btn" data-id="<?php echo $ext['extension_id']; ?>" data-action="approve"><i class="fas fa-check"></i> Approve</button>
-                                <button class="action-btn-ext reject-ext-btn" data-id="<?php echo $ext['extension_id']; ?>" data-action="reject" style="margin-top: 5px;"><i class="fas fa-times"></i> Reject</button>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="9" style="text-align: center;">No rental extension requests pending approval.</td> 
-                        </tr>
-                    <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-        </main>
+                        <td>{$row['fullname']}</td>
+                        <td>{$car_display}</td>
+                        <td>{$row['requested_at']}</td>
+                        <td>₱" . number_format($row['total_deducted_cost'], 2) . "</td>
+                        <td>
+                            <form method='POST' action='approve_early_return.php'>
+                                <input type='hidden' name='action' value='approve_early_return'>
+                                <input type='hidden' name='request_id' value='{$row['request_id']}'>
+                                <input type='hidden' name='user_id' value='{$row['user_id']}'>
+                                <button class='btn btn-success btn-sm'>
+                                    <i class='fas fa-check'></i> Approve
+                                </button>
+                            </form>
+                        </td>
+                    </tr>";
+                }
+            } else {
+                echo "<tr><td colspan='5' class='text-center'>No rental return requests pending initial approval</td></tr>";
+            }
+            ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===================== EXTENSION REQUESTS ===================== -->
+<div class="card extension-requests">
+    <div class="card-header bg-gray">
+        <h3 class="card-title text-white">Rental Extension Requests (Pending Approval)</h3>
+    </div>
+
+    <div class="card-body">
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Renter</th>
+                    <th>Car</th>
+                    <th>Current Duration</th>
+                    <th>Days Added</th>
+                    <th>New End Date</th>
+                    <th>Additional Cost</th>
+                    <th>Requested At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if (!empty($extension_requests)): ?>
+                <?php foreach ($extension_requests as $ext): ?>
+                <tr id="ext_row_<?= $ext['extension_id'] ?>">
+                    <td><?= $ext['extension_id'] ?></td>
+                    <td><?= htmlspecialchars($ext['fullname']) ?></td>
+                    <td><?= htmlspecialchars("{$ext['model']} ({$ext['plate_no']})") ?></td>
+                    <td><?= $ext['current_duration'] ?> days</td>
+                    <td><?= $ext['days_to_extend'] ?> days</td>
+                    <td><?= date('M d, Y', strtotime($ext['new_end_date'])) ?></td>
+                    <td>
+                        ₱<?= number_format($ext['additional_cost'], 2) ?><br>
+                        <a href="<?= $system_base_path . str_replace('../', '', htmlspecialchars($ext['payment_proof_path'])) ?>"
+                           target="_blank" class="text-info">
+                           <i class="fas fa-eye"></i> View Proof
+                        </a>
+                    </td>
+                    <td><?= date('M d, Y h:i A', strtotime($ext['requested_at'])) ?></td>
+                    <td>
+                        <button class="btn btn-success btn-sm action-btn-ext" data-id="<?= $ext['extension_id'] ?>" data-action="approve">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm action-btn-ext mt-1" data-id="<?= $ext['extension_id'] ?>" data-action="reject">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr><td colspan="9" class="text-center">No rental extension requests pending approval.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+</section>
+</div>
 
     <script>
         // Assuming jQuery and SweetAlert (Swal) are loaded
