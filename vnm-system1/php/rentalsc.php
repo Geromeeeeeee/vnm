@@ -21,12 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     
     $request_id = filter_input(INPUT_POST, 'request_id', FILTER_VALIDATE_INT);
     $payment_method = filter_input(INPUT_POST, 'payment_method', FILTER_SANITIZE_STRING);
-    // RESTORING: Capture and sanitize reference number, expecting a number
-    $payment_reference_no = filter_input(INPUT_POST, 'payment_reference_no', FILTER_SANITIZE_NUMBER_INT); 
+    // Capture reference number as a string to preserve leading zeros if any, though it must be digits
+    $payment_reference_no = $_POST['payment_reference_no'] ?? ''; 
     
-    // RESTORING: Check for reference number
-    if (!$request_id || !$payment_method || empty($payment_reference_no)) {
-        header("Location: rentalsc.php?error=invalid_payment_data");
+    // Check for request_id, method, and EXACTLY 13 digits
+    if (!$request_id || !$payment_method || !preg_match('/^[0-9]{13}$/', $payment_reference_no)) {
+        header("Location: rentalsc.php?error=invalid_reference_number&id=" . $request_id);
         exit;
     }
 
@@ -245,7 +245,14 @@ $history_details = $stmt_history->get_result();
     <a href="../php/customer_lifecycle.php">Rental History</a>
     <a href="../php/edit_account.php">Account</a>
     <button popovertarget="logout">Logout</button>
-</nav>
+    </nav>
+    <div id="logout" popover="auto">
+    <p>Are you sure you want to logout?</p>
+    <div class="logout-button">
+        <button type="button" onclick="handleLogout('no')">No</button>
+        <button type="button" onclick="handleLogout('yes')">Yes</button> 
+        </div>
+    </div>
     <main>
         <section id="upcoming">
             <h3>Pending Rental Requests (Awaiting Approval)</h3>
@@ -364,8 +371,6 @@ $history_details = $stmt_history->get_result();
                             onclick="openPaymentPopover(this)"
                             popovertarget="payment-popover"
                         >Payment</button>
-                        <?php elseif ($status_text === 'Approved' && $payment_status === 'Paid'): ?>
-                            <p style="color: #28a745; font-weight: bold; margin: 0;">Payment Approved. Pick Up on Rental Day</p>
                         <?php elseif ($status_text === 'Approved' && $payment_status === 'Proof Uploaded'): ?>
                             <p style="color: #007bff; font-weight: bold; margin: 0;">Proof Awaiting Admin Check</p>
                         <?php elseif ($status_text === 'Approved' && $payment_status === 'Correction Required'): // NEW: Re-submit button ?>
@@ -415,7 +420,17 @@ $history_details = $stmt_history->get_result();
                 <input type="file" name="payment_proof" id="payment-proof-file" required style="width: 100%; margin: 5px 0;">
                 
                 <label for="payment-reference-no" style="margin-top: 10px; display: block;"><strong>Reference/Transaction Number:</strong></label> 
-                <input type="number" name="payment_reference_no" id="payment-reference-no" required placeholder="e.g., 1234567890" style="width: 100%; padding: 8px; border-radius: 4px; box-sizing: border-box; background-color: #333; color: white; border: 1px solid #aaa; margin-bottom: 10px;">
+<input 
+    type="text" 
+    name="payment_reference_no" 
+    id="payment-reference-no" 
+    required 
+    placeholder="Enter 13-digit number" 
+    pattern="\d{13}" 
+    title="Please enter exactly 13 digits."
+    maxlength="13"
+    style="width: 100%; padding: 8px; border-radius: 4px; box-sizing: border-box; background-color: #333; color: white; border: 1px solid #aaa; margin-bottom: 10px;"
+>
                 
                 <button type="submit">Upload Proof & Confirm</button>
             </form>
@@ -474,22 +489,28 @@ $history_details = $stmt_history->get_result();
             }
         }
         
-        document.getElementById('payment-form').onsubmit = function() {
-            if (popoverPaymentMethod.value === "") {
-                alert("Please select a payment method (GCash or Maya) before uploading proof.");
-                return false;
-            }
-            if (document.getElementById('payment-proof-file').files.length === 0) {
-                 alert("Please select a file for proof of payment.");
-                 return false;
-            }
-            // RESTORING: Numeric validation
-            if (paymentReferenceNo.value.trim() === "" || isNaN(paymentReferenceNo.value)) {
-                alert("Please enter a valid numeric Reference/Transaction Number.");
-                return false;
-            }
-            return true;
-        };
+       document.getElementById('payment-form').onsubmit = function() {
+    if (popoverPaymentMethod.value === "") {
+        alert("Please select a payment method (GCash or Maya) before uploading proof.");
+        return false;
+    }
+    if (document.getElementById('payment-proof-file').files.length === 0) {
+         alert("Please select a file for proof of payment.");
+         return false;
+    }
+
+    // UPDATED: Strict 13-digit numeric validation
+    const refValue = paymentReferenceNo.value.trim();
+    const isThirteenDigits = /^\d{13}$/.test(refValue);
+
+    if (!isThirteenDigits) {
+        alert("Reference Number must be exactly 13 digits and contain only numbers.");
+        paymentReferenceNo.focus();
+        return false;
+    }
+    
+    return true;
+};
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);

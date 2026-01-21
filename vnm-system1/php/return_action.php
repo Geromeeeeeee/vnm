@@ -26,51 +26,79 @@ if (!$request_id || !$car_id || $return_odometer === false || $damage_fee === fa
 mysqli_begin_transaction($conn);
 
 try {
-    // 1. Fetch rental details for FINAL Calculation
+    // 1. Fetch rental details AND the customer's scheduled early return data
     $fetch_details_query = "
-        SELECT rr.total_cost, c.daily_rate, pd.pickup_date_actual
+        SELECT 
+            rr.total_cost, 
+            rr.rental_duration_days, 
+            rr.rental_date, 
+            rr.rental_time,
+            rrr.scheduled_return_date,
+            rrr.scheduled_return_time
         FROM rental_requests rr
-        INNER JOIN cars c ON rr.car_id = c.car_id
-        INNER JOIN rental_pickup_details pd ON rr.request_id = pd.request_id
+        LEFT JOIN rental_return_requests rrr ON rr.request_id = rrr.request_id
         WHERE rr.request_id = ?
         FOR UPDATE 
     ";
     $stmt_fetch = $conn->prepare($fetch_details_query);
     $stmt_fetch->bind_param("i", $request_id);
     $stmt_fetch->execute();
-    $details_result = $stmt_fetch->get_result();
-    $details_row = $details_result->fetch_assoc();
+    $details_row = $stmt_fetch->get_result()->fetch_assoc();
     $stmt_fetch->close();
 
     if (!$details_row) {
         throw new Exception("Could not fetch necessary rental details for final return.");
     }
 
-    $daily_rate = (float)$details_row['daily_rate'];
     $total_cost_paid = (float)$details_row['total_cost'];
-    $pickup_date_actual = $details_row['pickup_date_actual'];
+    $duration_days = (int)$details_row['rental_duration_days'];
+    $daily_rate = $total_cost_paid / $duration_days;
 
-    // 2. Final Cost Calculation
-    $startDate = new DateTime($pickup_date_actual);
-    $endDate = new DateTime($return_date_time); 
+    // Define Pickup and Original Deadline
+    $pickup_dt = new DateTime($details_row['rental_date'] . ' ' . $details_row['rental_time']);
+    $deadline_dt = clone $pickup_dt;
+    $deadline_dt->modify("+$duration_days days");
 
-    if ($endDate < $startDate) {
-        throw new Exception("Actual return date/time is before the actual pickup date/time.");
+    // Define Actual Return (Admin submitted value)
+    $actual_return_dt = new DateTime($return_date_time);
+
+    // 2. ACCURATE COST CALCULATION BASED ON 3 RULES
+    
+    // RULE 3: If return is on or after the original deadline, no refund.
+    if ($actual_return_dt >= $deadline_dt) {
+        $days_to_charge = $duration_days;
+        $final_refund_amount = 0;
+    } else {
+        // RULE 1: Measure strictly by 24-hour blocks
+        $diff = $pickup_dt->diff($actual_return_dt);
+        
+        // Convert interval to total hours to accurately use ceil
+        $total_hours = ($diff->days * 24) + $diff->h + ($diff->i / 60);
+        $days_used = ceil($total_hours / 24);
+
+        // RULE 2: Same-day return (within first 24h) always counts as Day 1
+        if ($days_used < 1) {
+            $days_used = 1;
+        }
+
+        $days_to_charge = $days_used;
+        $remaining_days = $duration_days - $days_to_charge;
+        
+        // Calculate refund based on remaining full days
+        $final_refund_amount = max(0, $remaining_days * $daily_rate);
     }
 
-    $seconds_used = $endDate->getTimestamp() - $startDate->getTimestamp();
-    $days_charged = max(1, ceil($seconds_used / (60 * 60 * 24)));
-    $final_deducted_cost_capped = min($days_charged * $daily_rate, $total_cost_paid);
-    $final_refund_amount = max(0, $total_cost_paid - $final_deducted_cost_capped - $damage_fee); 
+    // Final cost is what the business keeps (Total Paid - Refund)
+    $final_deducted_cost = $total_cost_paid - $final_refund_amount;
 
     // 3. Update status in rental_return_requests
     $update_return_req_sql = "
         UPDATE rental_return_requests 
-        SET total_deducted_cost = ?, status = 'Returned'
+        SET total_deducted_cost = ?, status = 'Processed'
         WHERE request_id = ?
     ";
     $stmt_update_return_req = $conn->prepare($update_return_req_sql);
-    $stmt_update_return_req->bind_param("di", $final_deducted_cost_capped, $request_id);
+    $stmt_update_return_req->bind_param("di", $final_deducted_cost, $request_id);
     $stmt_update_return_req->execute();
     $stmt_update_return_req->close();
     
@@ -93,27 +121,11 @@ try {
     $stmt_rental = $conn->prepare($update_rental_sql);
     $stmt_rental->bind_param("i", $request_id);
     $stmt_rental->execute();
-    if ($stmt_rental->affected_rows === 0) {
-        throw new Exception("Rental status changed unexpectedly during transaction.");
-    }
     $stmt_rental->close();
-
-    // 6. REMOVED: Update car availability (Scheduling is now date-based)
-    /*
-    $update_car_sql = "
-        UPDATE cars 
-        SET availability = 1 
-        WHERE car_id = ?
-    ";
-    $stmt_car = $conn->prepare($update_car_sql);
-    $stmt_car->bind_param("i", $car_id);
-    $stmt_car->execute();
-    $stmt_car->close();
-    */
 
     mysqli_commit($conn);
     
-    $success_message = urlencode("Rental ID {$request_id} closed. Final Cost: ₱" . number_format($final_deducted_cost_capped, 2) . ". Refund: ₱" . number_format($final_refund_amount, 2));
+    $success_message = urlencode("Rental closed. Final Usage Cost: ₱" . number_format($final_deducted_cost, 2) . ". Refund issued: ₱" . number_format($final_refund_amount, 2));
     header("Location: car_lifecycle.php?success={$success_message}");
     exit;
 

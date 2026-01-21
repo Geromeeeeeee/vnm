@@ -26,6 +26,8 @@ $query = "
         pd.odometer_pickup,
         pd.car_condition_pickup,
         rrr.total_deducted_cost,
+        rrr.scheduled_return_date, 
+        rrr.scheduled_return_time,
         rrr.requested_at AS scheduled_return_datetime
     FROM rental_requests rr
     INNER JOIN users u ON rr.user_id = u.user_id 
@@ -193,91 +195,174 @@ main { padding: 20px; max-width: 800px; margin: 0 auto; }
                 </p>
             </div>
 
-            <?php if ($is_early_return): ?>
-                <div class="callout callout-warning">
-                    <h5><i class="fas fa-exclamation-triangle"></i> Early Return Financial Details (Estimate)</h5>
+            <?php if ($rental_data): ?>
+   <?php 
+    // --- 1. PREPARE ALL VARIABLES FIRST ---
+    $pickup_odometer = $rental_data['odometer_pickup'] ?? 0;
+    
+    // Calculate boundaries based on pickup date and duration
+    $min_date_string = "{$rental_data['rental_date']} {$rental_data['rental_time']}";
+    $min_date_val = date('Y-m-d\TH:i', strtotime($min_date_string));
 
-                    <p><strong>Customer Requested Return:</strong> <?= $scheduled_return_datetime_display ?></p>
-                    <p><strong>Original Total Cost:</strong> ₱<?= $original_cost_formatted ?></p>
-                    <p><strong>Estimated Cost Used:</strong> ₱<?= $deducted_cost_formatted ?></p>
-                    <p>
-                        <strong>Estimated Refund / Credit:</strong>
-                        <span class="text-success font-weight-bold">₱<?= $refund_formatted ?></span>
-                    </p>
+    $duration_days = (int)$rental_data['rental_duration_days'];
+    $max_timestamp = strtotime($min_date_string . " +{$duration_days} days");
+    $max_date_val = date('Y-m-d\TH:i', $max_timestamp);
 
-                    <p class="text-danger font-weight-bold mt-2">
-                        NOTE: Final cost & refund will be calculated based on the
-                        <u>Actual Return Date & Time</u> entered below.
-                    </p>
-                </div>
-            <?php endif; ?>
+    // --- LINK CUSTOMER'S CHOSEN RETURN TIME ---
+    if (!empty($rental_data['scheduled_return_date']) && !empty($rental_data['scheduled_return_time'])) {
+        $user_picked_dt = $rental_data['scheduled_return_date'] . ' ' . $rental_data['scheduled_return_time'];
+        $default_return_value = date('Y-m-d\TH:i', strtotime($user_picked_dt));
+    } else {
+        $default_return_value = date('Y-m-d\TH:i');
+    }
 
-            <form action="return_action.php" method="POST">
+    // Friendly display for the UI
+    $pickup_display = date('F j, Y, g:i A', strtotime($min_date_string));
+    $return_deadline_display = date('F j, Y, g:i A', $max_timestamp);
 
-                <input type="hidden" name="request_id" value="<?= $request_id ?>">
-                <input type="hidden" name="car_id" value="<?= $car_id ?>">
+    // ================================================================
+    // ACCURATE REFUND CALCULATION LOGIC
+    // ================================================================
+    $pickup_dt = new DateTime($min_date_string); 
+    $original_return_dt = new DateTime($min_date_string . " +{$duration_days} days");
+    $actual_return_dt = new DateTime($default_return_value);
 
-                <div class="form-group">
-                    <label for="return_odometer">Return Odometer Reading (Current Mileage)</label>
-                    <input
-                        type="number"
-                        id="return_odometer"
-                        name="return_odometer"
-                        class="form-control"
-                        required
-                        min="<?= $rental_data['odometer_pickup'] ?? 0 ?>"
-                        placeholder="Must be greater than pickup mileage (<?= $pickup_odometer ?>)"
-                    >
-                </div>
+    // Daily rate based on total contract cost
+    $daily_rate = $rental_data['total_cost'] / $duration_days;
 
-                <div class="form-group">
-                    <label for="return_condition">Car Condition at Return (Notes)</label>
-                    <textarea
-                        id="return_condition"
-                        name="return_condition"
-                        rows="4"
-                        class="form-control"
-                        required
-                        placeholder="e.g., Car returned clean. New scratch on driver side door."
-                    ></textarea>
-                </div>
+    // Rule 3: If returned at or after the original deadline, no refund
+    if ($actual_return_dt >= $original_return_dt) {
+        $days_to_charge = $duration_days;
+        $refund_amount = 0;
+    } else {
+        // Rule 1: Measure strictly by 24-hour blocks
+        $interval = $pickup_dt->diff($actual_return_dt);
+        
+        // Convert interval to total hours used
+        $total_hours = ($interval->days * 24) + $interval->h + ($interval->i / 60);
+        
+        // Use ceil to count any part of a 24hr block as a full day
+        $days_used = ceil($total_hours / 24);
 
-                <div class="form-group">
-                    <label for="damage_fee">Damage / Extra Fee (₱)</label>
-                    <input
-                        type="number"
-                        id="damage_fee"
-                        name="damage_fee"
-                        class="form-control"
-                        step="0.01"
-                        min="0"
-                        value="0.00"
-                        required
-                    >
-                </div>
+        // Rule 2: If duration is 0 or same-day, it counts as Day 1
+        if ($days_used < 1) $days_used = 1; 
 
-                <div class="form-group">
-                    <label for="return_date_time">Actual Return Date & Time</label>
-                    <input
-                        type="datetime-local"
-                        id="return_date_time"
-                        name="return_date_time"
-                        class="form-control"
-                        required
-                        value="<?= date('Y-m-d\TH:i') ?>"
-                    >
-                </div>
+        $days_to_charge = $days_used;
+        $remaining_days = $duration_days - $days_to_charge;
+        
+        // Calculate final refund (₱)
+        $refund_amount = max(0, $remaining_days * $daily_rate);
+    }
+    // ================================================================
+?>
 
-                <button
-                    type="submit"
-                    name="action"
-                    value="confirm_return"
-                    class="btn btn-success btn-block"
-                >
-                    <i class="fas fa-check-circle"></i> Confirm Return and Finalize Rental
-                </button>
+    <?php if ($is_early_return): ?>
+        <div class="callout callout-warning">
+            <h5><i class="fas fa-exclamation-triangle"></i> Early Return Financial Details (Estimate)</h5>
 
-            </form>
+           
+            <p><strong>Original Total Cost:</strong> ₱<?= $original_cost_formatted ?></p>
+            <p><strong>Estimated Cost Used:</strong> ₱<?= $deducted_cost_formatted ?></p>
+            <p>
+                <strong>Estimated Refund / Credit:</strong>
+                <span class="text-success font-weight-bold">₱<?= $refund_formatted ?></span>
+            </p>
+
+            <p class="text-danger font-weight-bold mt-2">
+                NOTE: Final cost & refund will be calculated based on the
+                <u>Actual Return Date & Time</u> entered below.
+            </p>
+        </div>
+    <?php endif; ?>
+
+    <form action="return_action.php" method="POST">
+
+        <input type="hidden" name="request_id" value="<?= $request_id ?>">
+        <input type="hidden" name="car_id" value="<?= $car_id ?>">
+
+        <div class="form-group">
+            <label for="return_odometer">Return Odometer Reading (Current Mileage)</label>
+            <input
+                type="number"
+                id="return_odometer"
+                name="return_odometer"
+                class="form-control"
+                required
+                min="<?= $pickup_odometer ?>"
+                placeholder="Must be greater than pickup mileage (<?= $pickup_odometer ?>)"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="return_condition">Car Condition at Return (Notes)</label>
+            <textarea
+                id="return_condition"
+                name="return_condition"
+                rows="4"
+                class="form-control"
+                required
+                placeholder="e.g., Car returned clean. New scratch on driver side door."
+            ></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="damage_fee">Damage / Extra Fee (₱)</label>
+            <input
+                type="number"
+                id="damage_fee"
+                name="damage_fee"
+                class="form-control"
+                step="0.01"
+                min="0"
+                value="0.00"
+                required
+            >
+        </div>
+
+      <div class="form-group">
+    <label for="return_date_time">Actual Return Date & Time</label>
+    <input
+        type="datetime-local"
+        id="return_date_time"
+        name="return_date_time"
+        class="form-control"
+        required
+        min="<?= $min_date_val ?>"
+        max="<?= $max_date_val ?>"
+        onkeydown="return false"
+        /* This uses the 'default_return_value' variable from Step 1 */
+        value="<?= $default_return_value ?>" 
+    >
+    
+    <?php if (!empty($rental_data['scheduled_return_date'])): ?>
+        <div class="mt-2 p-2 bg-light border-left border-primary">
+            <small class="text-primary font-weight-bold">
+                <i class="fas fa-clock"></i> CUSTOMER SCHEDULED RETURN: 
+                <?= date('F j, Y, g:i A', strtotime($rental_data['scheduled_return_date'] . ' ' . $rental_data['scheduled_return_time'])) ?>
+            </small>
+        </div>
+    <?php endif; ?>
+
+    <small class="text-muted d-block mt-1">
+        <strong>Strict Boundary Rule:</strong><br>
+        Pickup: <?= $pickup_display ?><br>
+        Deadline: <?= $return_deadline_display ?>
+    </small>
+</div>
+   
+</div>
+
+        <button
+            type="submit"
+            name="action"
+            value="confirm_return"
+            class="btn btn-success btn-block"
+        >
+            <i class="fas fa-check-circle"></i> Confirm Return and Finalize Rental
+        </button>
+
+    </form>
+<?php endif; ?>
 
         <?php endif; ?>
 

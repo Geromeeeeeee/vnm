@@ -12,6 +12,18 @@ $user_id = $_SESSION['user'];
 
 include 'db.php'; 
 
+$current_user_id = $_SESSION['user'];
+
+// Check for active rentals
+$active_check_sql = "SELECT request_id FROM rental_requests 
+                     WHERE user_id = ? 
+                     AND request_status IN ('Approved', 'Picked Up', 'Early_Return_Scheduled') 
+                     LIMIT 1";
+$stmt_check = $conn->prepare($active_check_sql);
+$stmt_check->bind_param("i", $current_user_id);
+$stmt_check->execute();
+$has_active_rental = $stmt_check->get_result()->num_rows > 0;
+
 $sql = "SELECT 
             c.car_id, 
             c.image, 
@@ -75,7 +87,8 @@ foreach($recommendation as $recommendation_row){
     $fuel_pref[$fuel]++;
 }
 
-$recommended_car = [];
+// FIX: Changed singular $recommended_car to plural $recommended_cars to match the rest of the logic
+$recommended_cars = [];
 
 foreach ($cars as $reco_cars){
     $points = 0;
@@ -157,11 +170,8 @@ foreach ($cars as $car) {
 
 $recommended_html = '';
 
-if(mysqli_num_rows($reco_result)==0){
-    $recommended_html.='<h4>No Rental History</h4>';
-}else{
-    foreach ($recommended_cars as $car) {
-
+// FIX: The loop now uses $recommended_cars which is guaranteed to be an array
+foreach ($recommended_cars as $car) {
     $popover_images = [];
 
     // Main image
@@ -200,6 +210,6 @@ if(mysqli_num_rows($reco_result)==0){
         )">View Details</button>
     </div>';
 }
-}
+
 include '../html/dashboard.html';
 ?>

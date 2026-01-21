@@ -34,6 +34,33 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 $request_id = isset($_POST['request_id']) ? intval($_POST['request_id']) : 0;
+$check_sql = "SELECT car_id, rental_date, rental_duration_days FROM rental_requests WHERE request_id = ?";
+$stmt_check = $conn->prepare($check_sql);
+$stmt_check->bind_param("i", $request_id);
+$stmt_check->execute();
+$current_rental = $stmt_check->get_result()->fetch_assoc();
+
+if ($current_rental) {
+    $car_id = $current_rental['car_id'];
+    // The date the next person could potentially start (End Date)
+    $current_end_date = date('Y-m-d', strtotime($current_rental['rental_date'] . ' + ' . $current_rental['rental_duration_days'] . ' days'));
+
+    // Check if a Customer B exists starting on or after Customer A's end date
+    $conflict_sql = "SELECT request_id FROM rental_requests 
+                     WHERE car_id = ? 
+                     AND request_status IN ('Approved', 'Pending') 
+                     AND rental_date >= ? 
+                     LIMIT 1";
+    $stmt_conflict = $conn->prepare($conflict_sql);
+    $stmt_conflict->bind_param("is", $car_id, $current_end_date);
+    $stmt_conflict->execute();
+    
+    if ($stmt_conflict->get_result()->num_rows > 0) {
+        // Rule: Restrict Extensions if a future booking exists
+        echo json_encode(['success' => false, 'message' => "Your vehicle is reserved by another client immediately following your term. Extensions are unavailable; please return the vehicle to avoid late penalties."]);
+        exit();
+    }
+}
 $days_to_extend = isset($_POST['days_to_extend']) ? intval($_POST['days_to_extend']) : 0;
 $new_end_date = $_POST['new_end_date'] ?? null; 
 $additional_cost = isset($_POST['additional_cost']) ? floatval($_POST['additional_cost']) : 0.00;

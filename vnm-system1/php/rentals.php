@@ -538,24 +538,7 @@ $system_base_path = '/vnm-system1/';
                             <td id='status-button'>";
 
                                 if ($request_status === 'Approved') {
-                                    // Show approve payment button if proof is uploaded
-                                    if ($payment_status === 'Proof Uploaded') {
-                                        echo "<form action='rental_action.php' method='POST' style='margin-bottom: 5px;'>
-                                                <input type='hidden' name='request_id' value='{$request_id}'>
-                                                <input type='hidden' name='action' value='approve_payment'>
-                                                <button type='submit' class='btn btn-success btn-sm w-100'>Approve Payment</button>
-                                            </form>";
-                                    }
-                                    
-                                    $rental_date = strtotime($row['rental_date']);
-                                    $today = strtotime(date('Y-m-d'));
-                                    
-                                    if ($rental_date <= $today) {
-                                        echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn'>Process Pickup/Return</a>";
-                                    } else {
-                                        $date_formatted = date('M d, Y', $rental_date);
-                                        echo "<button disabled class='lifecycle-redirect-btn' style='background-color: #ccc; cursor: not-allowed;' title='Available on {$date_formatted}'>Available on {$date_formatted}</button>";
-                                    }
+                                    echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn'>Process Pickup/Return</a>";
                                 } elseif ($request_status === 'Picked Up') {
                                     echo "<a href='car_lifecycle.php' class='lifecycle-redirect-btn' style='background-color: #008CBA;'>Car is Rented (Manage)</a>";
                                 } elseif ($request_status === 'Early_Return_Approved' || $request_status === 'Early_Return_Scheduled') {
