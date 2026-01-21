@@ -364,6 +364,8 @@ $history_details = $stmt_history->get_result();
                             onclick="openPaymentPopover(this)"
                             popovertarget="payment-popover"
                         >Payment</button>
+                        <?php elseif ($status_text === 'Approved' && $payment_status === 'Paid'): ?>
+                            <p style="color: #28a745; font-weight: bold; margin: 0;">Payment Approved. Pick Up on Rental Day</p>
                         <?php elseif ($status_text === 'Approved' && $payment_status === 'Proof Uploaded'): ?>
                             <p style="color: #007bff; font-weight: bold; margin: 0;">Proof Awaiting Admin Check</p>
                         <?php elseif ($status_text === 'Approved' && $payment_status === 'Correction Required'): // NEW: Re-submit button ?>

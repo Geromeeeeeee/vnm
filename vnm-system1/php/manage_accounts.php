@@ -21,7 +21,11 @@
     }
     if(isset($_GET['delete_id'])){
         $id = intval($_GET['delete_id']);
+        
+        // Delete the user directly - rental data will be preserved in the database
+        // The rental_requests will still exist and show in rental_summary for historical sales data
         mysqli_query($conn, "DELETE FROM users WHERE user_id = $id");
+        
         header("Location: manage_accounts.php");
         exit();
     }
