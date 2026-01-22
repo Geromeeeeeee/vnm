@@ -102,6 +102,7 @@ $current_sql = "
         DATE_ADD(rr.rental_date, INTERVAL rr.rental_duration_days DAY) AS expected_return_date,
         rrr.scheduled_return_date, rrr.scheduled_return_time,
         rrr.total_deducted_cost,
+        rrr.status AS return_request_status,
         -- MAINTENANCE VALIDATOR (Updated to +2 to account for extension buffer):
         -- If B ends Jan 23, Maintenance is Jan 24.
         -- If A starts Jan 25, extension is blocked because even a 1-day extension moves maintenance to Jan 25.
@@ -116,9 +117,9 @@ $current_sql = "
     INNER JOIN cars c ON rr.car_id = c.car_id
     LEFT JOIN rental_pickup_details pd ON rr.request_id = pd.request_id
     LEFT JOIN rental_return_requests rrr ON rr.request_id = rrr.request_id 
-    WHERE rr.request_status IN ('Pending', 'Approved', 'Picked Up', 'Early Return Requested', 'Early_Return_Approved', 'Early_Return_Scheduled') 
+    WHERE rr.request_status IN ('Picked Up', 'Early_Return_Scheduled') 
         AND rr.user_id = ?
-    ORDER BY FIELD(rr.request_status, 'Picked Up', 'Early_Return_Scheduled', 'Early_Return_Approved', 'Early Return Requested', 'Approved', 'Pending') ASC, rr.rental_date ASC";
+    ORDER BY FIELD(rr.request_status, 'Picked Up', 'Early_Return_Scheduled') ASC, rr.rental_date ASC";
 
 $stmt_current = $conn->prepare($current_sql);
 
@@ -138,7 +139,7 @@ $history_sql = "
         rr.request_id, rr.rental_date, rr.rental_time, rr.total_cost, rr.request_status, rr.payment_status,
         c.car_brand, c.model, c.plate_no,
         pd.odometer_pickup,
-        rd.odometer_return, rd.return_date_actual, rd.damage_fee, 
+        rd.odometer_return, rd.return_date_actual, rd.damage_fee, rd.late_fee, rd.final_refund_amount,
         rrr.total_deducted_cost 
     FROM rental_requests rr
     INNER JOIN cars c ON rr.car_id = c.car_id
@@ -163,7 +164,7 @@ $history_details = $stmt_history->get_result();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/rent_form.css?v=1.01">
-    <link rel="stylesheet" href="../css/rental.css?v=1.5"> 
+    <link rel="stylesheet" href="../css/rental.css?v=1.6"> 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -186,7 +187,21 @@ $history_details = $stmt_history->get_result();
             top: 0; bottom: 0; left: 0; right: 0;
             position: fixed; 
         }
-        
+
+        #schedule-popover{
+            height: fit-content;
+            max-height: 75vh;
+            scrollbar-width: thin;
+            scrollbar-color: #777 #000;
+        }
+        #schedule-popover form{
+            display: flex;
+            flex-direction: column;
+            margin: auto;
+        }
+        #schedule-popover form button{
+            background-color: lightgreen;
+        }
         #payment-popover img, #extend-popover img { 
             max-width: 250px; 
             height: 250px; 
@@ -273,7 +288,7 @@ $history_details = $stmt_history->get_result();
         #payment-popover button[type="submit"], 
         #schedule-popover button[type="submit"], 
         #extend-popover button[type="submit"] { 
-            background-color: #5a6268; /* Darker grey for submit actions */
+            background-color: #28a745; /* Darker grey for submit actions */
             color: white;
             border: none;
             padding: 10px;
@@ -283,7 +298,19 @@ $history_details = $stmt_history->get_result();
             margin-top: 20px;
             font-weight: bold;
         }
-        
+        #schedule-popover form select{
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        #schedule-popover form select option{
+            color: white;
+        }
         #qr-instructions {
             padding: 20px;
             background-color: #333; 
@@ -293,6 +320,9 @@ $history_details = $stmt_history->get_result();
         .action-status p {
             font-weight: bold;
             color: #333; 
+        }
+        .action-status button{
+            margin: 0 1.5vh;
         }
         #extendRentalForm{
             display:flex;
@@ -316,7 +346,7 @@ $history_details = $stmt_history->get_result();
 </nav>
     <main>
         <section id="upcoming">
-            <h3>Active & Upcoming Rentals (Pending, Approved, Picked Up)</h3>
+            <h3>Active Rentals</h3>
             <?php if ($current_details->num_rows > 0): ?>
     <?php while ($row = $current_details->fetch_assoc()): 
         $request_id = htmlspecialchars($row['request_id']);
@@ -458,27 +488,48 @@ $schedule_popover_data = json_encode([
                 style="background-color: #ffc107; color: black; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;"
             >Schedule Actual Return</button>
         <?php elseif ($status_text === 'Early_Return_Scheduled'): ?>
-            <p style="color: blueviolet; font-weight: bold; margin: 0;">Return Scheduled:</p>
-            <?php if ($refund_amount > 0): ?>
-                <p style="font-size: 0.9em; color: yellow; font-weight: bold; margin-top: 5px;">
-                    Est. Refund: ₱<?= number_format($refund_amount, 2) ?>
+            <?php 
+                $return_status = $row['return_request_status'] ?? '';
+                if ($return_status === 'Pending'): 
+            ?>
+                <p style="color: purple; font-weight: bold; margin: 0;">Early Return Awaiting Approval</p>
+                <?php if ($refund_amount > 0): ?>
+                    <p style="font-size: 0.9em; color: yellow; font-weight: bold; margin-top: 5px;">
+                        Est. Refund: ₱<?= number_format($refund_amount, 2) ?>
+                    </p>
+                <?php else: ?>
+                    <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
+                        Est. Final Charge: ₱<?= number_format($final_charge, 2) ?> (No Refund Due)
+                    </p>
+                <?php endif; ?>
+                <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
+                    <strong>Scheduled Return:</strong><br>
+                    Date: <?= date('M j, Y', strtotime($row['scheduled_return_date'])) ?><br>
+                    Time: <?= date('h:i A', strtotime($row['scheduled_return_time'])) ?>
+                </p>
+            <?php elseif ($return_status === 'Approved'): ?>
+                <p style="color: blueviolet; font-weight: bold; margin: 0;">Return Approved & Scheduled</p>
+                <?php if ($refund_amount > 0): ?>
+                    <p style="font-size: 0.9em; color: yellow; font-weight: bold; margin-top: 5px;">
+                        Est. Refund: ₱<?= number_format($refund_amount, 2) ?>
+                    </p>
+                <?php endif; ?>
+                <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
+                    <strong style="color: yellow;">Awaiting Admin Processing</strong><br>
+                    Date: <?= date('M j, Y', strtotime($row['scheduled_return_date'])) ?><br>
+                    Time: <?= date('h:i A', strtotime($row['scheduled_return_time'])) ?>
                 </p>
             <?php endif; ?>
-            <p style="font-size: 0.9em; color: #ccc; margin-top: 5px;">
-                <strong style="color: yellow;">Awaiting Admin Processing</strong><br>
-                Date: <?= date('M j, Y', strtotime($row['scheduled_return_date'])) ?><br>
-                Time: <?= date('h:i A', strtotime($row['scheduled_return_time'])) ?>
-            </p>
        <?php elseif ($status_text === 'Picked Up'): ?>
     <p style="color: green; font-weight: bold; margin: 0;">ACTIVE RENTAL</p>
     
     <div style="margin-top: 10px;">
-        <form action="request_return.php" method="post" style="display: inline-block; margin-right: 10px;">
-            <input type="hidden" name="return_id" value="<?php echo $request_id?>">
-            <input type="hidden" name="return_date" value="<?php echo date('Y-m-d'); ?>">
-            <input type="hidden" name="start_date" value="<?php echo $row['pickup_date_actual'] ?? $row['rental_date']; ?>">                               
-            <button type="submit" name="return_button" class="vnm-action-button">Early Return</button> 
-        </form>
+        <button 
+            data-popover-details='<?= htmlspecialchars($schedule_popover_data, ENT_QUOTES, 'UTF-8') ?>'
+            onclick="openSchedulePopover(this)"
+            popovertarget="schedule-popover"
+            class="vnm-action-button"
+        >Early Return</button>
         
         <?php 
             // 3. Maintenance Logic: Check the conflict count from SQL (includes the +2 day buffer)
@@ -505,7 +556,7 @@ $schedule_popover_data = json_encode([
 </div>
                 <?php endwhile; ?>
             <?php else: ?>
-                <p>You have no pending, approved, or active rentals.</p>
+                <p>You have no active rentals.</p>
             <?php endif; ?>
         </section>
 
@@ -520,15 +571,14 @@ $schedule_popover_data = json_encode([
                     $status_text = htmlspecialchars($row['request_status']);
                     
                     // --- Refund/Cost Calculation for History ---
-                    $refund_amount_hist = 0.00;
+                    $refund_amount_hist = (float)($row['final_refund_amount'] ?? 0.00);
+                    $late_fee_hist = (float)($row['late_fee'] ?? 0.00);
+                    $damage_fee_hist = (float)($row['damage_fee'] ?? 0.00);
                     $original_cost_hist = (float)($row['total_cost'] ?? 0.00);
-                    $final_cost_display = number_format($original_cost_hist, 2);
-
-                    if ($status_text === 'Returned' && !empty($row['total_deducted_cost'])) {
-                        $final_charge_hist = (float)($row['total_deducted_cost']);
-                        $refund_amount_hist = max(0, $original_cost_hist - $final_charge_hist);
-                        $final_cost_display = number_format($final_charge_hist, 2);
-                    }
+                    
+                    // Calculate final charge: Original - Refund + Late Fee + Damage Fee
+                    $final_charge_hist = $original_cost_hist - $refund_amount_hist + $late_fee_hist + $damage_fee_hist;
+                    $final_cost_display = number_format($final_charge_hist, 2);
                     // --- End Refund/Cost Calculation ---
                     
                     $status_color = 'grey'; 
@@ -548,23 +598,26 @@ $schedule_popover_data = json_encode([
                         <p>Original Cost: ₱<?= number_format($original_cost_hist, 2) ?></p>
                         
                         <?php if ($status_text === 'Returned'): ?>
+                            <p style="color: #28a745; font-weight: bold;">Final Charge: ₱<?= $final_cost_display ?></p>
                             <?php if ($refund_amount_hist > 0): ?>
-                                <p style="color: #28a745; font-weight: bold;">Final Charge: ₱<?= $final_cost_display ?></p>
                                 <p style="color: yellow; font-weight: bold;">Refund Processed: ₱<?= number_format($refund_amount_hist, 2) ?></p>
-                            <?php elseif (!empty($row['total_deducted_cost'])): ?>
-                                <p style="color: #28a745; font-weight: bold;">Final Charge: ₱<?= $final_cost_display ?></p>
+                            <?php endif; ?>
+                            <?php if ($late_fee_hist > 0): ?>
+                                <p style="color: #ff6b6b; font-weight: bold;">Late Fee: ₱<?= number_format($late_fee_hist, 2) ?></p>
                             <?php endif; ?>
                         <?php endif; ?>
                         
                         <p>Final Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= strtoupper($status_text) ?></span></p>
                         
                         <?php if ($status_text === 'Returned'): ?>
+    <?php if (!empty($row['odometer_return']) && !empty($row['odometer_pickup'])): ?>
     <p style="font-size: 0.9em; margin-top: 10px; color: #ccc;">
         <strong>Distance Traveled:</strong> <?= number_format($row['odometer_return'] - $row['odometer_pickup']) ?> km
     </p>
+    <?php endif; ?>
 
-    <?php if ($row['damage_fee'] > 0): ?>
-        <p style="color: red; font-weight: bold;">Damage/Extra Fee: ₱<?= number_format($row['damage_fee'], 2) ?></p>
+    <?php if ($damage_fee_hist > 0): ?>
+        <p style="color: red; font-weight: bold;">Damage/Extra Fee: ₱<?= number_format($damage_fee_hist, 2) ?></p>
     <?php endif; ?>
 <?php endif; ?>
                     </div>
@@ -648,6 +701,7 @@ $schedule_popover_data = json_encode([
     <form id="schedule-form" action="submit_early_return_schedule.php" method="POST">
         <input type="hidden" name="action" value="submit_schedule">
         <input type="hidden" name="request_id" id="schedulePopoverRequestId">
+        <input type="hidden" name="is_initial_request" id="scheduleIsInitialRequest" value="0">
         
         <div class="schedule-form-content">
             <label for="schedule-date"><strong>Return Date:</strong></label>
@@ -657,7 +711,19 @@ $schedule_popover_data = json_encode([
             <small id="date-constraints" style="color: #aaa; display: block; margin-top: 2px;"></small>
 
             <label for="schedule-time" style="margin-top: 10px;"><strong>Return Time:</strong></label>
-            <input type="time" name="schedule_time" id="schedule-time" required>
+            <select name="schedule_time" id="schedule-time" required>
+                    <option value="">Select Time</option>
+                    <option value="08:00">8:00 AM</option>
+                    <option value="09:00">9:00 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="13:00">1:00 PM</option>
+                    <option value="14:00">2:00 PM</option>
+                    <option value="15:00">3:00 PM</option>
+                    <option value="16:00">4:00 PM</option>
+                    <option value="17:00">5:00 PM</option>
+                </select>
         </div>
         
         <button type="submit">Confirm Return Schedule</button>
@@ -792,6 +858,7 @@ $schedule_popover_data = json_encode([
         const scheduleDateInput = document.getElementById('schedule-date');
         const schedulePopoverCar = document.getElementById('schedulePopoverCar');
         const schedulePopoverRequestId = document.getElementById('schedulePopoverRequestId');
+        const scheduleIsInitialRequest = document.getElementById('scheduleIsInitialRequest');
 
         // 2. Clear old values and constraints to force the browser to refresh
         scheduleDateInput.value = '';
@@ -801,15 +868,19 @@ $schedule_popover_data = json_encode([
         // 3. Assign display labels
         schedulePopoverCar.textContent = data.car_display;
         schedulePopoverRequestId.value = data.request_id;
+        
+        // 4. Detect if this is an initial early return request (from "Picked Up" status)
+        // Check if button text contains "Early Return" to determine it's an initial request
+        scheduleIsInitialRequest.value = button.textContent.includes('Early Return') ? "1" : "0";
 
-        // 4. Set the new boundaries
+        // 5. Set the new boundaries
         // min_date should be Jan 28. This grays out all previous dates.
         scheduleDateInput.setAttribute('min', data.min_date);
         
         // max_date is the end of the contract. This grays out everything after.
         scheduleDateInput.setAttribute('max', data.max_date);
 
-        // 5. Ensure the browser doesn't allow manual typing of invalid dates
+        // 6. Ensure the browser doesn't allow manual typing of invalid dates
         scheduleDateInput.onkeydown = (e) => e.preventDefault();
 
         console.log("Range set: From " + data.min_date + " to " + data.max_date);

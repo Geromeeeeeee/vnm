@@ -62,14 +62,30 @@ try {
     // Define Actual Return (Admin submitted value)
     $actual_return_dt = new DateTime($return_date_time);
 
-    // 2. ACCURATE COST CALCULATION BASED ON 3 RULES
+    // 2. ACCURATE COST CALCULATION BASED ON 3 RULES + LATE FEES
     
-    // RULE 3: If return is on or after the original deadline, no refund.
-    if ($actual_return_dt >= $deadline_dt) {
+    $late_fee = 0;
+    
+    // Check if returned AFTER the deadline (Late Return)
+    if ($actual_return_dt > $deadline_dt) {
+        // Calculate days late
+        $late_diff = $deadline_dt->diff($actual_return_dt);
+        $total_late_hours = ($late_diff->days * 24) + $late_diff->h + ($late_diff->i / 60);
+        $days_late = ceil($total_late_hours / 24);
+        
+        // Calculate late fee based on daily rate
+        $late_fee = $days_late * $daily_rate;
+        
+        // No refund when late
+        $days_to_charge = $duration_days;
+        $final_refund_amount = 0;
+    }
+    // RULE 3: If return is exactly on the deadline, no refund but no late fee
+    elseif ($actual_return_dt >= $deadline_dt) {
         $days_to_charge = $duration_days;
         $final_refund_amount = 0;
     } else {
-        // RULE 1: Measure strictly by 24-hour blocks
+        // RULE 1: Measure strictly by 24-hour blocks (Early Return)
         $diff = $pickup_dt->diff($actual_return_dt);
         
         // Convert interval to total hours to accurately use ceil
@@ -88,8 +104,8 @@ try {
         $final_refund_amount = max(0, $remaining_days * $daily_rate);
     }
 
-    // Final cost is what the business keeps (Total Paid - Refund)
-    $final_deducted_cost = $total_cost_paid - $final_refund_amount;
+    // Final cost = Total Paid - Refund + Late Fee
+    $final_deducted_cost = $total_cost_paid - $final_refund_amount + $late_fee;
 
     // 3. Update status in rental_return_requests
     $update_return_req_sql = "
@@ -102,13 +118,19 @@ try {
     $stmt_update_return_req->execute();
     $stmt_update_return_req->close();
     
-    // 4. Insert into rental_return_details
+    // 4. Insert into rental_return_details (with late_fee)
+    // First, check if late_fee column exists, if not add it dynamically
+    $check_column = $conn->query("SHOW COLUMNS FROM rental_return_details LIKE 'late_fee'");
+    if ($check_column->num_rows == 0) {
+        $conn->query("ALTER TABLE rental_return_details ADD COLUMN late_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER damage_fee");
+    }
+    
     $insert_sql = "
-        INSERT INTO rental_return_details (request_id, return_date_actual, odometer_return, car_condition_return, damage_fee, final_refund_amount, return_admin_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO rental_return_details (request_id, return_date_actual, odometer_return, car_condition_return, damage_fee, late_fee, final_refund_amount, return_admin_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ";
     $stmt_insert = $conn->prepare($insert_sql);
-    $stmt_insert->bind_param("isidsdi", $request_id, $return_date_time, $return_odometer, $return_condition, $damage_fee, $final_refund_amount, $admin_id);
+    $stmt_insert->bind_param("isiddddi", $request_id, $return_date_time, $return_odometer, $return_condition, $damage_fee, $late_fee, $final_refund_amount, $admin_id);
     $stmt_insert->execute();
     $stmt_insert->close();
 
@@ -125,7 +147,14 @@ try {
 
     mysqli_commit($conn);
     
-    $success_message = urlencode("Rental closed. Final Usage Cost: ₱" . number_format($final_deducted_cost, 2) . ". Refund issued: ₱" . number_format($final_refund_amount, 2));
+    $message_parts = ["Rental closed. Final Usage Cost: ₱" . number_format($final_deducted_cost, 2)];
+    if ($final_refund_amount > 0) {
+        $message_parts[] = "Refund issued: ₱" . number_format($final_refund_amount, 2);
+    }
+    if ($late_fee > 0) {
+        $message_parts[] = "Late Fee charged: ₱" . number_format($late_fee, 2);
+    }
+    $success_message = urlencode(implode(". ", $message_parts));
     header("Location: car_lifecycle.php?success={$success_message}");
     exit;
 

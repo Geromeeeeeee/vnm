@@ -23,8 +23,10 @@ $query = "
         c.car_brand,
         c.model,
         c.plate_no,
+        c.daily_rate,
         pd.odometer_pickup,
         pd.car_condition_pickup,
+        pd.pickup_date_actual,
         rrr.total_deducted_cost,
         rrr.scheduled_return_date, 
         rrr.scheduled_return_time,
@@ -68,13 +70,42 @@ $is_early_return = $rental_data['request_status'] === 'Early_Return_Scheduled';
 $status_display = $is_early_return ? "Early Return Scheduled" : "Picked Up (Regular Return)";
 
 if ($is_early_return) {
-    $deducted_cost_formatted = number_format($rental_data['total_deducted_cost'] ?? 0, 2);
+    // Calculate actual days used based on pickup date and scheduled return date
+    $pickup_date = $rental_data['pickup_date_actual'] ?? $rental_data['rental_date'];
+    $scheduled_return_date = $rental_data['scheduled_return_date'];
+    
+    if ($pickup_date && $scheduled_return_date) {
+        $pickup_dt = new DateTime($pickup_date);
+        $return_dt = new DateTime($scheduled_return_date);
+        
+        // Calculate days difference
+        $interval = $pickup_dt->diff($return_dt);
+        $days_used = $interval->days;
+        
+        // If returning on the same day as pickup, count as 1 day
+        if ($days_used == 0) {
+            $days_used = 1;
+        }
+        
+        // Calculate cost based on daily rate
+        $daily_rate = (float)($rental_data['daily_rate'] ?? 0);
+        $calculated_cost = $days_used * $daily_rate;
+        
+        // Use calculated cost if total_deducted_cost is not set or is zero
+        $deducted_cost = (!empty($rental_data['total_deducted_cost']) && $rental_data['total_deducted_cost'] > 0) 
+            ? $rental_data['total_deducted_cost'] 
+            : $calculated_cost;
+    } else {
+        $deducted_cost = 0;
+    }
+    
+    $deducted_cost_formatted = number_format($deducted_cost, 2);
     $original_cost_formatted = number_format($rental_data['total_cost'] ?? 0, 2);
-    $refund_amount = ($rental_data['total_cost'] ?? 0) - ($rental_data['total_deducted_cost'] ?? 0);
+    $refund_amount = ($rental_data['total_cost'] ?? 0) - $deducted_cost;
     $refund_formatted = number_format(max(0, $refund_amount), 2);
     
-    if (!empty($rental_data['scheduled_return_datetime'])) {
-        $scheduled_return_datetime_display = date('F j, Y, g:i A', strtotime($rental_data['scheduled_return_datetime']));
+    if (!empty($rental_data['scheduled_return_date']) && !empty($rental_data['scheduled_return_time'])) {
+        $scheduled_return_datetime_display = date('F j, Y, g:i A', strtotime($rental_data['scheduled_return_date'] . ' ' . $rental_data['scheduled_return_time']));
     } 
 }
 ?>
@@ -230,8 +261,25 @@ main { padding: 20px; max-width: 800px; margin: 0 auto; }
     // Daily rate based on total contract cost
     $daily_rate = $rental_data['total_cost'] / $duration_days;
 
-    // Rule 3: If returned at or after the original deadline, no refund
-    if ($actual_return_dt >= $original_return_dt) {
+    $late_fee = 0;
+    $is_late = false;
+    
+    // Check if returned AFTER the deadline (Late Return)
+    if ($actual_return_dt > $original_return_dt) {
+        // Calculate days late
+        $late_diff = $original_return_dt->diff($actual_return_dt);
+        $total_late_hours = ($late_diff->days * 24) + $late_diff->h + ($late_diff->i / 60);
+        $days_late = ceil($total_late_hours / 24);
+        
+        // Calculate late fee
+        $late_fee = $days_late * $daily_rate;
+        $is_late = true;
+        
+        $days_to_charge = $duration_days;
+        $refund_amount = 0;
+    }
+    // Rule 3: If returned at or on the original deadline, no refund
+    elseif ($actual_return_dt >= $original_return_dt) {
         $days_to_charge = $duration_days;
         $refund_amount = 0;
     } else {
@@ -271,6 +319,20 @@ main { padding: 20px; max-width: 800px; margin: 0 auto; }
             <p class="text-danger font-weight-bold mt-2">
                 NOTE: Final cost & refund will be calculated based on the
                 <u>Actual Return Date & Time</u> entered below.
+            </p>
+        </div>
+    <?php endif; ?>
+    
+    <?php if ($is_late): ?>
+        <div class="callout callout-danger">
+            <h5><i class="fas fa-exclamation-circle"></i> LATE RETURN DETECTED!</h5>
+            <p><strong>Scheduled Deadline:</strong> <?= $return_deadline_display ?></p>
+            <p><strong>Current Return Time:</strong> <?= date('F j, Y, g:i A', strtotime($default_return_value)) ?></p>
+            <p class="text-danger font-weight-bold">
+                <strong>Estimated Late Fee:</strong> ₱<?= number_format($late_fee, 2) ?>
+            </p>
+            <p class="text-warning">
+                <small>Late fee is calculated at ₱<?= number_format($daily_rate, 2) ?> per day (vehicle's daily rate)</small>
             </p>
         </div>
     <?php endif; ?>
@@ -328,7 +390,6 @@ main { padding: 20px; max-width: 800px; margin: 0 auto; }
         class="form-control"
         required
         min="<?= $min_date_val ?>"
-        max="<?= $max_date_val ?>"
         onkeydown="return false"
         /* This uses the 'default_return_value' variable from Step 1 */
         value="<?= $default_return_value ?>" 
@@ -344,9 +405,10 @@ main { padding: 20px; max-width: 800px; margin: 0 auto; }
     <?php endif; ?>
 
     <small class="text-muted d-block mt-1">
-        <strong>Strict Boundary Rule:</strong><br>
-        Pickup: <?= $pickup_display ?><br>
-        Deadline: <?= $return_deadline_display ?>
+        <strong>Return Date Range:</strong><br>
+        Min (Pickup): <?= $pickup_display ?><br>
+        Deadline: <?= $return_deadline_display ?><br>
+        <span class="text-warning"><i class="fas fa-info-circle"></i> Returns after deadline will incur late fees</span>
     </small>
 </div>
    

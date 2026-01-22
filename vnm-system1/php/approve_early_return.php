@@ -23,31 +23,13 @@ if (!$request_id || !$user_id) {
 mysqli_begin_transaction($conn);
 
 try {
-    // 1. Update status in rental_requests to 'Early_Return_Approved'
-    // This status tells the customer they must now provide the return schedule.
-    $update_rental_sql = "
-        UPDATE rental_requests 
-        SET request_status = 'Early_Return_Approved' 
-        WHERE request_id = ? AND user_id = ? AND request_status = 'Early Return Requested'
-    ";
-    $stmt_rental = $conn->prepare($update_rental_sql);
-    if ($stmt_rental === false) {
-        throw new Exception("SQL Prepare Failed (Rental Update): " . $conn->error);
-    }
-    $stmt_rental->bind_param("ii", $request_id, $user_id);
-    if (!$stmt_rental->execute()) {
-        throw new Exception("Error updating rental status: " . $stmt_rental->error);
-    }
-    if ($stmt_rental->affected_rows === 0) {
-        throw new Exception("Rental request status changed or not found (Expected 'Early Return Requested'). Update aborted.");
-    }
-    $stmt_rental->close();
-
-    // 2. Update status in rental_return_requests to 'Approved'
+    // 1. Check current status and update rental_return_requests to 'Approved'
+    // In the new workflow, the request is already in 'Early_Return_Scheduled' status
+    // and the rental_return_requests has status 'Pending' which needs to be approved
     $update_return_req_sql = "
         UPDATE rental_return_requests 
         SET status = 'Approved' 
-        WHERE request_id = ? AND user_id = ? AND status = 'pending'
+        WHERE request_id = ? AND user_id = ? AND status = 'Pending'
     ";
     $stmt_return_req = $conn->prepare($update_return_req_sql);
     if ($stmt_return_req === false) {
@@ -57,11 +39,30 @@ try {
     if (!$stmt_return_req->execute()) {
         throw new Exception("Error updating return request status: " . $stmt_return_req->error);
     }
+    if ($stmt_return_req->affected_rows === 0) {
+        throw new Exception("Return request not found or already processed. Update aborted.");
+    }
     $stmt_return_req->close();
+
+    // 2. Verify the rental_requests is in 'Early_Return_Scheduled' status
+    $check_rental_sql = "SELECT request_status FROM rental_requests WHERE request_id = ? AND user_id = ?";
+    $stmt_check = $conn->prepare($check_rental_sql);
+    if ($stmt_check === false) {
+        throw new Exception("SQL Prepare Failed (Rental Check): " . $conn->error);
+    }
+    $stmt_check->bind_param("ii", $request_id, $user_id);
+    $stmt_check->execute();
+    $result = $stmt_check->get_result();
+    $rental = $result->fetch_assoc();
+    $stmt_check->close();
+
+    if (!$rental || $rental['request_status'] !== 'Early_Return_Scheduled') {
+        throw new Exception("Rental request is not in Early_Return_Scheduled status. Current status: " . ($rental['request_status'] ?? 'Not Found'));
+    }
     
     mysqli_commit($conn);
     
-    $success_message = urlencode("Early Return Request ID {$request_id} approved. Customer must now schedule the return.");
+    $success_message = urlencode("Early Return Request ID {$request_id} approved. Return is scheduled and awaiting processing.");
     header("Location: car_lifecycle.php?success={$success_message}");
     exit;
 

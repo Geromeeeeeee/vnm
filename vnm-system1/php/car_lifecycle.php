@@ -33,13 +33,15 @@ $query = "
 $details = mysqli_query($conn, $query); 
 $system_base_path = '/vnm-system1/'; 
 
-// --- 2. Query for Return Requests (Pending Admin Approval 1) (UNCHANGED) ---
+// --- 2. Query for Return Requests (Pending Admin Approval 1) (UPDATED for new workflow) ---
 $display_return_req = "SELECT 
     rrr.request_id, 
     users.user_id, 
     users.fullname,
-    rrr.requested_at,
-    rrr.total_deducted_cost,
+    COALESCE(rrr.requested_at, NOW()) as requested_at,
+    rrr.scheduled_return_date,
+    rrr.scheduled_return_time,
+    COALESCE(rrr.total_deducted_cost, 0) as total_deducted_cost,
     c.car_brand, 
     c.model,
     c.plate_no
@@ -321,8 +323,8 @@ if ($ext_result) {
                 <tr>
                     <th>Renter</th>
                     <th>Car</th>
-                    <th>Requested At</th>
-                    <th>Total Deducted Cost</th>
+                    <th>Scheduled Return Date/Time</th>
+                    <th>Est. Refund Amount</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -331,12 +333,14 @@ if ($ext_result) {
             if (mysqli_num_rows($query_result) > 0) {
                 while ($row = mysqli_fetch_assoc($query_result)) {
                     $car_display = htmlspecialchars("{$row['car_brand']} {$row['model']} ({$row['plate_no']})");
+                    $scheduled_datetime = date('M d, Y h:i A', strtotime($row['scheduled_return_date'] . ' ' . $row['scheduled_return_time']));
+                    $refund_display = $row['total_deducted_cost'] > 0 ? '₱' . number_format($row['total_deducted_cost'], 2) : 'To be calculated';
                     echo "
                     <tr>
                         <td>{$row['fullname']}</td>
                         <td>{$car_display}</td>
-                        <td>{$row['requested_at']}</td>
-                        <td>₱" . number_format($row['total_deducted_cost'], 2) . "</td>
+                        <td>{$scheduled_datetime}</td>
+                        <td>{$refund_display}</td>
                         <td>
                             <form method='POST' action='approve_early_return.php'>
                                 <input type='hidden' name='action' value='approve_early_return'>

@@ -81,11 +81,13 @@ $completed_query = "
         rr.total_cost, rr.rental_duration_days, rr.payment_status, rr.request_status,
         rr.payment_proof_path, rr.payment_reference_no, rr.admin_notes,
         users.fullname, cars.car_brand, cars.model, cars.plate_no,
-        rrr.total_deducted_cost /* Added to fetch the final charged amount */
+        rrr.total_deducted_cost, /* Added to fetch the final charged amount */
+        rd.late_fee, rd.damage_fee, rd.final_refund_amount /* Added for complete financial breakdown */
     FROM rental_requests rr
     INNER JOIN users ON rr.user_id = users.user_id 
     INNER JOIN cars ON rr.car_id = cars.car_id
     LEFT JOIN rental_return_requests rrr ON rr.request_id = rrr.request_id /* Added join for refund check */
+    LEFT JOIN rental_return_details rd ON rr.request_id = rd.request_id /* Added for late fees and refunds */
     WHERE rr.request_status = 'Returned'
 ";
 $completed_details = mysqli_query($conn, $completed_query);
@@ -729,14 +731,17 @@ $system_base_path = '/vnm-system1/';
                                     <th>Time</th>
                                     <th>Duration (Days)</th>
                                     <th>Original Cost</th>
+                                    <th>Final Charge</th>
+                                    <th>Refund/Late Fee</th>
                                     <th>Rental Status</th>
                                     <th>Notes</th>
+                                    <th>Actions</th>
                                 </tr>
                                 <?php
                 if ($completed_details === false) {
-                    echo "<tr><td colspan='13' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
+                    echo "<tr><td colspan='14' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($completed_details) && mysqli_num_rows($completed_details) == 0){
-                    echo "<tr><td colspan = 13>No completed rentals</td></tr>"; 
+                    echo "<tr><td colspan = 14>No completed rentals</td></tr>"; 
                 } else{
                     while ($row = mysqli_fetch_assoc($completed_details)){
                         $request_id = htmlspecialchars($row['request_id']);
@@ -749,8 +754,29 @@ $system_base_path = '/vnm-system1/';
                         $admin_notes = htmlspecialchars($row['admin_notes']);
                         
                         $original_cost = (float)($row['total_cost'] ?? 0.00);
-                        $final_charge = (float)($row['total_deducted_cost'] ?? $original_cost);
-                        $refund_amount = max(0, $original_cost - $final_charge);
+                        $late_fee = (float)($row['late_fee'] ?? 0.00);
+                        $damage_fee = (float)($row['damage_fee'] ?? 0.00);
+                        $refund_amount = (float)($row['final_refund_amount'] ?? 0.00);
+                        
+                        // Calculate final charge: Original - Refund + Late Fee + Damage Fee
+                        $final_charge = $original_cost - $refund_amount + $late_fee + $damage_fee;
+                        
+                        // Display for refund/late fee column
+                        $fee_display = '';
+                        if ($refund_amount > 0) {
+                            $fee_display = "<span style='color: #28a745;'>Refund: ₱" . number_format($refund_amount, 2) . "</span>";
+                        }
+                        if ($late_fee > 0) {
+                            if ($fee_display) $fee_display .= "<br>";
+                            $fee_display .= "<span style='color: #ff6b6b;'>Late Fee: ₱" . number_format($late_fee, 2) . "</span>";
+                        }
+                        if ($damage_fee > 0) {
+                            if ($fee_display) $fee_display .= "<br>";
+                            $fee_display .= "<span style='color: #ffa500;'>Damage: ₱" . number_format($damage_fee, 2) . "</span>";
+                        }
+                        if (!$fee_display) {
+                            $fee_display = "N/A";
+                        }
 
                         $status_color = 'gray';
                         $status_display = "<span style='font-weight: bold; color: darkgreen;'>{$request_status}</span>";
@@ -772,9 +798,10 @@ $system_base_path = '/vnm-system1/';
                             <td>{$reference_no}</td>
                             <td>{$row['rental_date']}</td>
                             <td>{$row['rental_time']}</td>
+                            <td>{$row['rental_duration_days']}</td>
                             <td>₱" . number_format($original_cost, 2) . "</td>
                             <td style='color: #28a745; font-weight: bold;'>₱" . number_format($final_charge, 2) . "</td>
-                            <td style='color: yellow; font-weight: bold;'>₱" . number_format($refund_amount, 2) . "</td>
+                            <td style='font-size: 0.85em;'>{$fee_display}</td>
                             <td>{$status_display}</td>
                             <td>
                                 <button type='button' class='notes-btn' data-request-id='{$request_id}' data-admin-notes='{$admin_notes}' onclick='openNotesModal(this)'>Notes</button>

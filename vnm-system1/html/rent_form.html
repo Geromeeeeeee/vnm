@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css?v=1.01">
-    <link rel="stylesheet" href="../css/rent_form.css?v=1.04">
+    <link rel="stylesheet" href="../css/rent_form.css?v=1.05">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <title>Rent</title>
@@ -40,7 +40,19 @@
                 <input type="text" name="pickup" id="pickup" placeholder="Select Date.." required>
                 
                 <label for="time">Time: </label>
-                <input type="time" name="time" id="time" required>
+                <select name="time" id="time" required>
+                    <option value="">Select Time...</option>
+                    <option value="08:00">8:00 AM</option>
+                    <option value="09:00">9:00 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="13:00">1:00 PM</option>
+                    <option value="14:00">2:00 PM</option>
+                    <option value="15:00">3:00 PM</option>
+                    <option value="16:00">4:00 PM</option>
+                    <option value="17:00">5:00 PM</option>
+                </select>
                 
                 <label for="duration">Duration (Days): </label>
                 <input type="number" name="duration" id="duration" min="1" required>

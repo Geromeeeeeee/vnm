@@ -83,7 +83,7 @@ nav button:nth-child(8){
         flex-direction: column;
         height: 100%;
     }
-    form input{
+    form input, select{
         margin-bottom: var(--space-s);
         padding: 1vh;
         color: #111;
@@ -109,6 +109,9 @@ nav button:nth-child(8){
     }
     form button:hover{
         scale: 1.05;
+    }
+    form select option{
+        color: #111;
     }
 }
     
