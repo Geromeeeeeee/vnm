@@ -126,4 +126,7 @@
     #payment-popover form button{
         margin: 0;
     }
+    #payment-popover form select option{
+        color: white;
+    }
 }

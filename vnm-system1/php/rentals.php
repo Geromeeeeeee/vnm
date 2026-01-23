@@ -82,7 +82,7 @@ $completed_query = "
         rr.payment_proof_path, rr.payment_reference_no, rr.admin_notes,
         users.fullname, cars.car_brand, cars.model, cars.plate_no,
         rrr.total_deducted_cost, /* Added to fetch the final charged amount */
-        rd.late_fee, rd.damage_fee, rd.final_refund_amount /* Added for complete financial breakdown */
+        rd.late_fee, rd.damage_fee, rd.final_refund_amount, rd.return_date_actual /* Added for complete financial breakdown and actual return date */
     FROM rental_requests rr
     INNER JOIN users ON rr.user_id = users.user_id 
     INNER JOIN cars ON rr.car_id = cars.car_id
@@ -732,6 +732,7 @@ $system_base_path = '/vnm-system1/';
                                     <th>Duration (Days)</th>
                                     <th>Original Cost</th>
                                     <th>Final Charge</th>
+                                    <th>Actual Return Date</th>
                                     <th>Refund/Late Fee</th>
                                     <th>Rental Status</th>
                                     <th>Notes</th>
@@ -739,9 +740,9 @@ $system_base_path = '/vnm-system1/';
                                 </tr>
                                 <?php
                 if ($completed_details === false) {
-                    echo "<tr><td colspan='14' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
+                    echo "<tr><td colspan='15' style='color: red; text-align: center; padding: 10px;'>Database Query Failed: " . htmlspecialchars(mysqli_error($conn)) . "</td></tr>";
                 } elseif(isset($completed_details) && mysqli_num_rows($completed_details) == 0){
-                    echo "<tr><td colspan = 14>No completed rentals</td></tr>"; 
+                    echo "<tr><td colspan = 15>No completed rentals</td></tr>"; 
                 } else{
                     while ($row = mysqli_fetch_assoc($completed_details)){
                         $request_id = htmlspecialchars($row['request_id']);
@@ -801,6 +802,7 @@ $system_base_path = '/vnm-system1/';
                             <td>{$row['rental_duration_days']}</td>
                             <td>₱" . number_format($original_cost, 2) . "</td>
                             <td style='color: #28a745; font-weight: bold;'>₱" . number_format($final_charge, 2) . "</td>
+                            <td>" . (!empty($row['return_date_actual']) ? date('M j, Y @ g:i A', strtotime($row['return_date_actual'])) : 'N/A') . "</td>
                             <td style='font-size: 0.85em;'>{$fee_display}</td>
                             <td>{$status_display}</td>
                             <td>

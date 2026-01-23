@@ -1,5 +1,37 @@
+// Define calculateReturnDate globally so flatpickr can access it
+window.calculateReturnDate = function() {
+    const pickupInput = document.getElementById('pickup');
+    const durationInput = document.getElementById('duration');
+    const estimatedReturnInput = document.getElementById('estimated_return');
+    
+    if (!pickupInput || !durationInput || !estimatedReturnInput) {
+        console.log('Missing elements:', {pickupInput, durationInput, estimatedReturnInput});
+        return;
+    }
 
-document.getElementById('car_id_input').value = CAR_ID;
+    const pickupDate = pickupInput.value;
+    const duration = parseInt(durationInput.value) || 1;
+
+    if (!pickupDate) {
+        estimatedReturnInput.value = '';
+        return;
+    }
+
+    // Calculate return date (pickup date + duration)
+    const pickup = new Date(pickupDate);
+    const returnDate = new Date(pickup);
+    returnDate.setDate(pickup.getDate() + duration);
+
+    // Format the date nicely
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    estimatedReturnInput.value = returnDate.toLocaleDateString('en-US', options);
+    console.log('Calculated return date:', estimatedReturnInput.value);
+};
+
+// Wait for DOM before accessing elements
+if (document.getElementById('car_id_input')) {
+    document.getElementById('car_id_input').value = CAR_ID;
+}
 document.addEventListener('DOMContentLoaded', function() 
 {
     if (typeof DAILY_RATE === 'undefined' || typeof CAR_ID === 'undefined' || typeof CAR_MODEL === 'undefined') {
@@ -14,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function()
     const form = document.querySelector('#rent-details form');
     const modelInput = document.querySelector('input[name="car_model"]');
     const durationInput = document.getElementById('duration'); 
-    const priceInput = document.getElementById('price');       
+    const priceInput = document.getElementById('price');
     
     if (modelInput) {
         modelInput.value = carModel;
@@ -46,6 +78,9 @@ document.addEventListener('DOMContentLoaded', function()
         durationInput.value = 1;
         calculatePrice();
         
-        durationInput.addEventListener('input', calculatePrice);
+        durationInput.addEventListener('input', function() {
+            calculatePrice();
+            window.calculateReturnDate();
+        });
     }
 });

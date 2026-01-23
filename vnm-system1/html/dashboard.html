@@ -16,7 +16,7 @@
     </style>
 </head>
 <body>
-    <input type="hidden" id="hasActiveRental" value="<?php echo $has_active_rental ? 'true' : 'false'; ?>">
+    <input type="hidden" id="hasPendingLimit" value="<?php echo $has_pending_limit ? 'true' : 'false'; ?>">
 
      <nav>
         <h3>VNM Car Rental</h3>
@@ -87,12 +87,12 @@
             
             if (rentLink) {
                 // 2. Read the status from the hidden input field we added
-                const rentalStatus = document.getElementById('hasActiveRental').value;
+                const rentalStatus = document.getElementById('hasPendingLimit').value;
 
                 // 3. If it is 'true', block the action and show your message
                 if (rentalStatus === 'true') {
                     e.preventDefault(); 
-                    alert("You can't currently rent, you still have an active rental.");
+                    alert("You can't currently rent. You already have 3 pending rental requests awaiting approval.");
                 }
             }
         });

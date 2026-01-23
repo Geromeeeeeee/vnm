@@ -610,6 +610,11 @@ $schedule_popover_data = json_encode([
                         <p>Final Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= strtoupper($status_text) ?></span></p>
                         
                         <?php if ($status_text === 'Returned'): ?>
+    <?php if (!empty($row['return_date_actual'])): ?>
+    <p style="font-size: 0.9em; margin-top: 10px; color: #ccc;">
+        <strong>Return Date:</strong> <?= date('F j, Y @ h:i A', strtotime($row['return_date_actual'])) ?>
+    </p>
+    <?php endif; ?>
     <?php if (!empty($row['odometer_return']) && !empty($row['odometer_pickup'])): ?>
     <p style="font-size: 0.9em; margin-top: 10px; color: #ccc;">
         <strong>Distance Traveled:</strong> <?= number_format($row['odometer_return'] - $row['odometer_pickup']) ?> km

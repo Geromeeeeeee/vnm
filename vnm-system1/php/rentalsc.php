@@ -166,7 +166,7 @@ $history_details = $stmt_history->get_result();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="../css/main.css">
     <link rel="stylesheet" href="../css/rent_form.css?v=1.01">
-    <link rel="stylesheet" href="../css/rental.css?v=1.45"> 
+    <link rel="stylesheet" href="../css/rental.css?v=1.46"> 
     <title>My Rentals</title>
     <style>
         #payment-popover {
@@ -266,6 +266,11 @@ $history_details = $stmt_history->get_result();
                     // RESTORING: admin_notes
                     $admin_notes = htmlspecialchars($row['admin_notes']);
                     
+                    // Calculate estimated return date
+                    $rental_date = new DateTime($row['rental_date']);
+                    $rental_date->modify('+' . $row['rental_duration_days'] . ' days');
+                    $estimated_return_display = $rental_date->format('F j, Y');
+                    
                     $status_color = ($status_text === 'Approved') ? 'green' : (($status_text === 'Pending') ? 'orange' : 'black');
 
                     $payment_status_color = '#dc3545'; 
@@ -283,6 +288,8 @@ $history_details = $stmt_history->get_result();
                     <div class="detail">
                         <h4><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></h4>
                         <p><?= $car_display ?></p>
+                        <p>Duration: <?= $row['rental_duration_days'] ?> day(s)</p>
+                        <p><strong>Estimated Return:</strong> <?= $estimated_return_display ?></p>
                         <p>Request Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= $status_text ?></span></p>
                         <p>Payment Status: <span style="font-weight: bold; color: <?= $payment_status_color ?>;"><?= $payment_status ?></span></p>
                         
@@ -324,6 +331,11 @@ $history_details = $stmt_history->get_result();
                     // RESTORING: admin_notes
                     $admin_notes = htmlspecialchars($row['admin_notes']);
                     
+                    // Calculate estimated return date
+                    $rental_date = new DateTime($row['rental_date']);
+                    $rental_date->modify('+' . $row['rental_duration_days'] . ' days');
+                    $estimated_return_display = $rental_date->format('F j, Y');
+                    
                     $status_color = 'grey'; 
                     if ($status_text === 'Rejected') $status_color = 'red';
                     if ($status_text === 'Approved') $status_color = 'green';
@@ -349,6 +361,8 @@ $history_details = $stmt_history->get_result();
                     <div class="detail">
                         <h4><?= $rental_date_display ?> @ <?= htmlspecialchars($row['rental_time']) ?></h4>
                         <p><?= $car_display ?></p>
+                        <p>Duration: <?= $row['rental_duration_days'] ?> day(s)</p>
+                        <p><strong>Estimated Return:</strong> <?= $estimated_return_display ?></p>
                         <p>Request Status: <span style="font-weight: bold; color: <?= $status_color ?>;"><?= $status_text ?></span></p>
                         
                         <?php if ($status_text === 'Approved'): ?>

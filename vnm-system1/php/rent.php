@@ -37,25 +37,60 @@ if (!$pickup_date || $pickup_date <= $today) {
 // ====================================================================
 
 // ====================================================================
-// VALIDATION 2: Check concurrent rental limit (Max 3)
+// VALIDATION 2: Check concurrent rental limit (Max 3 Pending)
 // ====================================================================
-$active_rental_sql = "SELECT COUNT(*) as active_count FROM rental_requests 
+$pending_rental_sql = "SELECT COUNT(*) as pending_count FROM rental_requests 
                       WHERE user_id = ? 
-                      AND request_status IN ('Approved', 'Picked Up', 'Early_Return_Scheduled')";
-$stmt_active = $conn->prepare($active_rental_sql);
-if ($stmt_active === false) {
+                      AND request_status = 'Pending'";
+$stmt_pending = $conn->prepare($pending_rental_sql);
+if ($stmt_pending === false) {
     header("Location: rent_form.php?car_id=" . $car_id . "&error=db_check_failed");
     exit;
 }
-$stmt_active->bind_param("i", $user_id);
-$stmt_active->execute();
-$active_count = $stmt_active->get_result()->fetch_assoc()['active_count'];
-$stmt_active->close();
+$stmt_pending->bind_param("i", $user_id);
+$stmt_pending->execute();
+$pending_count = $stmt_pending->get_result()->fetch_assoc()['pending_count'];
+$stmt_pending->close();
 
-if ($active_count >= 3) {
+if ($pending_count >= 3) {
     header("Location: rent_form.php?car_id=" . $car_id . "&error=rental_limit_exceeded");
     exit;
 }
+// ====================================================================
+
+// ====================================================================
+// VALIDATION 3: Check for overlapping rentals (customer cannot have overlapping bookings)
+// ====================================================================
+$overlap_sql = "SELECT rental_date, rental_duration_days 
+                FROM rental_requests 
+                WHERE user_id = ? 
+                AND request_status IN ('Pending', 'Approved', 'Picked Up', 'Early_Return_Scheduled')";
+$stmt_overlap = $conn->prepare($overlap_sql);
+if ($stmt_overlap === false) {
+    header("Location: rent_form.php?car_id=" . $car_id . "&error=db_check_failed");
+    exit;
+}
+$stmt_overlap->bind_param("i", $user_id);
+$stmt_overlap->execute();
+$overlap_result = $stmt_overlap->get_result();
+
+$new_rental_start = new DateTime($pickup_date);
+$new_rental_end = new DateTime($pickup_date);
+$new_rental_end->modify('+' . $duration . ' days');
+
+while ($existing = $overlap_result->fetch_assoc()) {
+    $existing_start = new DateTime($existing['rental_date']);
+    $existing_end = new DateTime($existing['rental_date']);
+    $existing_end->modify('+' . $existing['rental_duration_days'] . ' days');
+    
+    // Check if the new rental overlaps with existing rental
+    if ($new_rental_start < $existing_end && $new_rental_end > $existing_start) {
+        $stmt_overlap->close();
+        header("Location: rent_form.php?car_id=" . $car_id . "&error=overlapping_rental");
+        exit;
+    }
+}
+$stmt_overlap->close();
 // ====================================================================
 
 $license_photo_path = null;

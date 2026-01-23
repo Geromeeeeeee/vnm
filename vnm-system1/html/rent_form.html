@@ -57,6 +57,9 @@
                 <label for="duration">Duration (Days): </label>
                 <input type="number" name="duration" id="duration" min="1" required>
                 
+                <label for="estimated_return">Estimated Return Date: </label>
+                <input type="text" name="estimated_return" id="estimated_return" readonly placeholder="Select pickup date and duration">
+                
                 <label for="price">Total Price: </label>
                 <input type="number" name="price" id="price" readonly required> 
 
@@ -68,15 +71,33 @@
         </div>
     </main>
 
-   <script>
+    <script src="../js/rent_form.js"></script>
+    <script>
+    // Calculate minimum date: either tomorrow or after customer's existing rental
+    let minDate = new Date();
+    minDate.setDate(minDate.getDate() + 1); // Default: tomorrow
+    
+    if (typeof CUSTOMER_MIN_DATE !== 'undefined' && CUSTOMER_MIN_DATE) {
+        const customerMinDate = new Date(CUSTOMER_MIN_DATE);
+        // Use whichever is later: tomorrow or the customer's min date
+        if (customerMinDate > minDate) {
+            minDate = customerMinDate;
+        }
+    }
+    
     flatpickr("#pickup", {
         dateFormat: "Y-m-d",
-        minDate: new Date().fp_incr(1), 
+        minDate: minDate,
         disable: typeof DISABLED_DATES !== 'undefined' ? DISABLED_DATES : [],
-        locale: { firstDayOfWeek: 1 }
+        locale: { firstDayOfWeek: 1 },
+        onChange: function(selectedDates, dateStr, instance) {
+            // Trigger return date calculation when pickup date changes
+            if (typeof window.calculateReturnDate === 'function') {
+                window.calculateReturnDate();
+            }
+        }
     });
 </script>
-    <script src="../js/rent_form.js"></script>
     <script src="../js/dashboard.js"></script>
 </body>
 </html>

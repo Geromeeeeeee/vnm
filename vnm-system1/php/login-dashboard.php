@@ -14,17 +14,17 @@ include 'db.php';
 
 $current_user_id = $_SESSION['user'];
 
-// Check for active rentals (Count them, limit is 3)
-$active_check_sql = "SELECT COUNT(*) as active_count FROM rental_requests 
+// Check for pending rentals (Count them, limit is 3)
+$pending_check_sql = "SELECT COUNT(*) as pending_count FROM rental_requests 
                      WHERE user_id = ? 
-                     AND request_status IN ('Approved', 'Picked Up', 'Early_Return_Scheduled')";
-$stmt_check = $conn->prepare($active_check_sql);
+                     AND request_status = 'Pending'";
+$stmt_check = $conn->prepare($pending_check_sql);
 $stmt_check->bind_param("i", $current_user_id);
 $stmt_check->execute();
-$active_rentals = $stmt_check->get_result()->fetch_assoc()['active_count'];
-$has_active_rental = $active_rentals >= 3; // Disable booking if already have 3 active rentals
+$pending_rentals = $stmt_check->get_result()->fetch_assoc()['pending_count'];
+$has_pending_limit = $pending_rentals >= 3; // Disable booking if already have 3 pending rentals
 $rental_limit = 3;
-$active_rental_count = $active_rentals;
+$pending_rental_count = $pending_rentals;
 
 $sql = "SELECT 
             c.car_id, 

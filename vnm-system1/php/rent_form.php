@@ -94,6 +94,31 @@ $car = $car_result->fetch_assoc();
 $car_model = htmlspecialchars($car['model']);
 $daily_rate = $car['daily_rate'];
 
+// --- NEW: Check customer's existing rentals to find the latest end date ---
+$user_id = (int)$_SESSION['user'];
+$customer_rental_sql = "SELECT rental_date, rental_duration_days 
+                        FROM rental_requests 
+                        WHERE user_id = ? 
+                        AND request_status IN ('Pending', 'Approved', 'Picked Up', 'Early_Return_Scheduled')
+                        ORDER BY rental_date DESC, rental_duration_days DESC
+                        LIMIT 1";
+$stmt_customer = $conn->prepare($customer_rental_sql);
+$stmt_customer->bind_param("i", $user_id);
+$stmt_customer->execute();
+$customer_rental_result = $stmt_customer->get_result();
+
+$customer_min_date = null;
+if ($customer_rental_result->num_rows > 0) {
+    $customer_rental = $customer_rental_result->fetch_assoc();
+    $rental_start = new DateTime($customer_rental['rental_date']);
+    $rental_start->modify('+' . $customer_rental['rental_duration_days'] . ' days');
+    // Add 1 day after the rental ends (for the day they return the car)
+    $rental_start->modify('+1 day');
+    $customer_min_date = $rental_start->format('Y-m-d');
+}
+$stmt_customer->close();
+// --- END NEW CODE ---
+
 // --- UPDATED: FETCH BOOKED DATES + 1 MAINTENANCE DAY ---
 // --- UPDATED: BLOCK RENTAL PERIOD (Jan 10-15) + MAINTENANCE (Jan 16) ---
 $disable_dates = [];
@@ -139,6 +164,7 @@ $images = array_pad($images, 4, '');
     const DAILY_RATE = <?= $daily_rate ?>;
     const CAR_ID = '<?= $car_id ?>';
     const CAR_MODEL = '<?= $car_model ?>';
+    const CUSTOMER_MIN_DATE = <?= $customer_min_date ? "'" . $customer_min_date . "'" : 'null' ?>;
     
     // Use 'var' so it is globally available for the script in rent_form.html
     var DISABLED_DATES = <?php echo json_encode($disable_dates); ?>;
